@@ -1,0 +1,175 @@
+services:
+  # PostgreSQL with pgvector extension for vector similarity search
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: evi_rag_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      # Database credentials (change in production!)
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=evi_rag
+
+      # Performance tuning for local development
+      - POSTGRES_SHARED_BUFFERS=256MB
+      - POSTGRES_WORK_MEM=16MB
+      - POSTGRES_MAINTENANCE_WORK_MEM=128MB
+      - POSTGRES_EFFECTIVE_CACHE_SIZE=1GB
+
+      # Max connections
+      - POSTGRES_MAX_CONNECTIONS=100
+    volumes:
+      # Persist PostgreSQL data - CRITICAL for data persistence
+      - postgres_data:/var/lib/postgresql/data
+      # Mount SQL initialization scripts (run on first start)
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d evi_rag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - evi_rag_network
+
+  # Neo4j graph database for knowledge graph
+  neo4j:
+    image: neo4j:5.26.1
+    container_name: evi_rag_neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"  # HTTP/HTTPS web interface
+      - "7687:7687"  # Bolt protocol
+    environment:
+      # Authentication
+      - NEO4J_AUTH=neo4j/password123
+
+      # Memory settings (adjust based on your system)
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=2G
+      - NEO4J_server_memory_pagecache_size=1G
+
+      # Performance tuning
+      - NEO4J_dbms_memory_transaction_total_max=512m
+      - NEO4J_dbms_checkpoint_interval_time=30s
+
+      # Security settings
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+
+      # APOC configuration (useful for graph operations)
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      # Persist Neo4j data
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider localhost:7474 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - evi_rag_network
+
+volumes:
+  # PostgreSQL persistent storage - NEVER delete this volume in production!
+  postgres_data:
+    driver: local
+  # Neo4j persistent storage
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
+  neo4j_import:
+    driver: local
+  neo4j_plugins:
+    driver: local
+
+networks:
+  evi_rag_network:
+    driver: bridge
+
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+#
+# Start all services:
+#   docker-compose up -d
+#
+# Start specific service:
+#   docker-compose up -d postgres
+#   docker-compose up -d neo4j
+#
+# View logs:
+#   docker-compose logs -f postgres
+#   docker-compose logs -f neo4j
+#
+# Stop services (keeps data):
+#   docker-compose down
+#
+# Stop and remove volumes (WARNING: DELETES ALL DATA!):
+#   docker-compose down -v
+#
+# Check service status:
+#   docker-compose ps
+#
+# Restart a service:
+#   docker-compose restart postgres
+#
+# =============================================================================
+# PostgreSQL Connection
+# =============================================================================
+#
+# Connection string for .env:
+#   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/evi_rag
+#
+# Connect with psql:
+#   psql postgresql://postgres:postgres@localhost:5432/evi_rag
+#
+# Run SQL files manually (if not auto-loaded):
+#   docker exec -i evi_rag_postgres psql -U postgres -d evi_rag < sql/schema.sql
+#   docker exec -i evi_rag_postgres psql -U postgres -d evi_rag < sql/evi_schema_additions.sql
+#
+# Backup database:
+#   docker exec evi_rag_postgres pg_dump -U postgres evi_rag > backup.sql
+#
+# Restore database:
+#   docker exec -i evi_rag_postgres psql -U postgres -d evi_rag < backup.sql
+#
+# =============================================================================
+# Neo4j Connection
+# =============================================================================
+#
+# Access Neo4j Browser:
+#   Open http://localhost:7474 in your web browser
+#   Username: neo4j
+#   Password: password123
+#
+# Connection string for .env:
+#   NEO4J_URI=bolt://localhost:7687
+#   NEO4J_USER=neo4j
+#   NEO4J_PASSWORD=password123
+#
+# =============================================================================
+# Data Persistence
+# =============================================================================
+#
+# Your data is stored in Docker volumes:
+#   - postgres_data: All PostgreSQL data, embeddings, and tables
+#   - neo4j_data: All Neo4j graph data
+#
+# These volumes persist even if containers are deleted!
+# Only 'docker-compose down -v' will delete them.
+#
+# To backup volumes:
+#   docker run --rm -v evi_rag_test_postgres_data:/data -v $(pwd):/backup \
+#     ubuntu tar czf /backup/postgres_backup.tar.gz /data
+#
+# To restore volumes:
+#   docker run --rm -v evi_rag_test_postgres_data:/data -v $(pwd):/backup \
+#     ubuntu tar xzf /backup/postgres_backup.tar.gz -C /
