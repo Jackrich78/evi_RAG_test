@@ -4,6 +4,24 @@
 **Project**: EVI 360 RAG System for Workplace Safety
 **Archon Project ID**: `c5b0366e-d3a8-45cc-8044-997366030473`
 
+---
+
+## 📚 Documentation Index
+
+**Active Documentation** (use these for daily work):
+- [README.md](../README.md) - Project overview and quick start
+- [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md) - Detailed EVI 360 architecture
+- [LOCAL_SETUP_COMPLETE.md](../LOCAL_SETUP_COMPLETE.md) - Complete setup guide with troubleshooting
+- [CLAUDE.md](../CLAUDE.md) - AI assistant development instructions
+- [TASKS.md](../TASKS.md) - Task management via Archon MCP
+- [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS.md) - This file (detailed progress tracking)
+
+**Historical Archives**:
+- [2025-10-19 Supabase Migration](../archive/2025-10-19_supabase_migration/) - Migration documentation (7 files)
+- [Original Project Files](../archive/2025-10-19_original_project_files/) - Template source files
+
+---
+
 ## Executive Summary
 
 This document tracks the implementation progress of the EVI 360 RAG system. **Phase 1 (Infrastructure Setup)** and **Phase 2 (Data Models & Schema)** are complete and ready for testing. All foundational code has been written and is awaiting validation.

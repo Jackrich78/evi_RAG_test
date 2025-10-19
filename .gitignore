@@ -25,7 +25,6 @@ env/
 
 # Environment & secrets
 *.env
-*.env.*
 .envrc
 
 # Coverage / reports

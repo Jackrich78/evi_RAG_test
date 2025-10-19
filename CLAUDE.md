@@ -1,7 +1,17 @@
 ### 🔄 Project Awareness & Context
-- **Always read `PLANNING.md`** at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
-- **Check `TASK.md`** before starting a new task. If the task isn’t listed, add it with a brief description and today's date.
-- **Use consistent naming conventions, file structure, and architecture patterns** as described in `PLANNING.md`.
+
+**EVI 360 Project - CRITICAL CONTEXT**:
+- **This is NOT a generic RAG system** - It's specifically for **EVI 360 workplace safety specialists**
+- **Language**: All guidelines are in **Dutch** - system must support Dutch search and responses
+- **3-Tier System**: Understand tier 1/2/3 guideline hierarchy (Summary → Key Facts → Details)
+- **Product Focus**: System includes product catalog with compliance tags and recommendations
+- **Archon Tracking**: Use **Archon MCP** for task management (project ID: `c5b0366e-d3a8-45cc-8044-997366030473`)
+
+**Documentation**:
+- **Always read `PROJECT_OVERVIEW.md`** at the start of a new conversation to understand EVI 360 architecture
+- **Check `TASKS.md`** for how to use Archon MCP for task tracking (don't look for TASK.md file!)
+- **Review `docs/IMPLEMENTATION_PROGRESS.md`** for current phase status and what's been completed
+- **Use consistent naming conventions, file structure, and architecture patterns** as described in `PROJECT_OVERVIEW.md`
 
 ### 🧱 Code Structure & Modularity
 - **Never create a file longer than 500 lines of code.** If a file approaches this limit, refactor by splitting it into modules or helper files.
@@ -38,8 +48,9 @@
 
 
 ### ✅ Task Completion
-- **Mark completed tasks in `TASK.md`** immediately after finishing them.
-- Add new sub-tasks or TODOs discovered during development to `TASK.md` under a “Discovered During Work” section.
+- **Use Archon MCP** for task management - see `TASKS.md` for how to use it
+- **Mark completed tasks** immediately after finishing them using Archon MCP tools
+- **Update `docs/IMPLEMENTATION_PROGRESS.md`** when completing major milestones or phases
 
 ### 📎 Style & Conventions
 - **Use Python** as the primary language.
