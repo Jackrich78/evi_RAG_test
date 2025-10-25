@@ -1,248 +1,125 @@
-# External Integrations
+# External Service Integrations - EVI 360 RAG
 
-**Last Updated:** 2025-10-24
-**Status:** Template - Update for your project
+**Last Updated:** 2025-10-25
+**Status:** Phase 1-2 Complete (Notion configured), Phase 3+ Planned
 
 ## Overview
 
-This document lists all external services, APIs, and integrations used by the project, including configuration details and dependencies.
-
-## MCPs (Model Context Protocol)
-
-### Archon (Optional)
-
-**Purpose:** Knowledge management and task tracking
-
-**Status:** Optional - not required for Phase 1
-
-**Configuration:**
-- MCP Server: `mcp__archon__*`
-- Installation: [Link to Archon MCP docs]
-- Connection: Configure in Claude Code settings
-
-**Usage:**
-- Researcher agent queries framework documentation
-- Future: Task synchronization (Phase 3)
-- Future: Session state persistence (Phase 3)
-
-**See Also:** [CLAUDE.md](../../CLAUDE.md#archon-integration-optional)
+The EVI 360 RAG system integrates with external services for guideline ingestion, embeddings, and LLM responses. All integrations prioritize **Dutch language support** for workplace safety specialists.
 
 ---
 
-### [Other MCP Name]
+## Notion API ✅ CONFIGURATION COMPLETE (Phase 3 - Ready)
 
-**Purpose:** [What this MCP provides]
+**Purpose:** Fetch ~100 Dutch safety guidelines with 3-tier structure from EVI 360's Notion database
 
-**Configuration:** [Setup instructions]
+**Provider:** Notion Labs Inc.
+**Documentation:** https://developers.notion.com/
 
-**Usage:** [How it's used in project]
+**Library:** notion-client 2.2.1 (official Python client)
 
----
+**Configuration:** [`config/notion_config.py`](../../config/notion_config.py) ✅ Implemented
 
-## External Services
-
-### Service 1: [Name]
-
-**Purpose:** [What this service does for us]
-
-**Provider:** [Company/platform name]
-
-**Documentation:** [Link to official docs]
-
-**API Endpoint:** [Base URL if applicable]
-
-**Authentication:**
-- Method: [API Key / OAuth / JWT]
-- Configuration: [Where credentials are stored]
-- Environment Variable: `SERVICE_API_KEY`
-
-**Rate Limits:**
-- Free tier: [Limits]
-- Paid tier: [Limits if applicable]
-
-**Integration Points:**
-- [Where in codebase this is used]
-- [Which features depend on this]
-
-**Fallback Strategy:**
-- [What happens if service is unavailable]
-
----
-
-### Service 2: [Name]
-
-*Repeat template for each service*
-
----
-
-## Third-Party Libraries
-
-### Major Dependencies
-
-| Library | Purpose | Version | License |
-|---------|---------|---------|---------|
-| [Name] | [What it does] | [X.Y.Z] | [MIT/Apache/etc.] |
-| [Name] | [What it does] | [X.Y.Z] | [License] |
-
-**Dependency Management:**
-- Lock file: [package-lock.json / poetry.lock / Cargo.lock]
-- Update policy: [How often dependencies are updated]
-- Security: Dependabot enabled for vulnerability alerts
-
-## Configuration
-
-### Environment Variables
-
-Required environment variables for integrations:
-
+**Environment Variables:**
 ```bash
-# Service 1
-SERVICE_1_API_KEY=your_api_key_here
-SERVICE_1_BASE_URL=https://api.service1.com
-
-# Service 2
-SERVICE_2_CLIENT_ID=your_client_id
-SERVICE_2_CLIENT_SECRET=your_secret
-
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/dbname
+NOTION_API_TOKEN=secret_...
+NOTION_GUIDELINES_DATABASE_ID=...
 ```
 
-**Setup:**
-1. Copy `.env.example` to `.env`
-2. Fill in your credentials
-3. Never commit `.env` to git
+**Status:** ✅ Ready for Phase 3 implementation
 
-### Configuration Files
+**Tier Detection:** Parses Notion headings (## Samenvatting, ## Kerninformatie, ## Volledige Details)
 
-**Location:** [Where config files live]
+**Rate Limiting:** 3 requests/second (Notion API limit)
 
-**Format:** [JSON / YAML / TOML]
+---
 
-**Example:**
-```json
-{
-  "integrations": {
-    "service1": {
-      "enabled": true,
-      "timeout": 5000
-    }
-  }
-}
+## OpenAI API (Phase 3-6 - Planned)
+
+**Purpose:** Generate embeddings for semantic search and Dutch language LLM responses
+
+**Provider:** OpenAI
+**Documentation:** https://platform.openai.com/docs
+
+**Library:** openai 1.90.0
+
+**Environment Variables:**
+```bash
+LLM_API_KEY=sk-...
+EMBEDDING_API_KEY=sk-...
+EMBEDDING_MODEL=text-embedding-3-small
+LLM_MODEL=gpt-4
 ```
 
-## Testing Integrations
+**Use Cases:**
+1. **Embeddings** (Phase 3): text-embedding-3-small (1536 dims) for guideline chunks and products
+2. **LLM Responses** (Phase 5-6): GPT-4 for Dutch language Specialist Agent
+3. **Categorization** (Phase 4): AI-assisted product categorization
 
-### Mock Services
+**Dutch Support:** Excellent (native language model)
 
-For testing, we mock external services:
-- **Unit Tests:** Always mocked
-- **Integration Tests:** Use test/sandbox environments when available
-- **E2E Tests:** May use real services in staging
+---
 
-**Mock Data Location:** `tests/fixtures/integrations/`
+## EVI 360 Website (Phase 4 - Planned)
 
-### Test Credentials
+**Purpose:** Scrape ~100 product listings for catalog
 
-**Available Test Accounts:**
-- Service 1: test@example.com / test123
-- Service 2: [Test account details]
+**Technology:** beautifulsoup4 4.12.3 + httpx 0.28.1
 
-**Test API Keys:**
-- Stored in CI/CD secrets
-- Different from production keys
-- Limited permissions
+**Target:** https://evi360.nl/producten (or provided URL)
 
-## Monitoring
+**Rate Limiting:** 0.5 req/sec (self-imposed, respect robots.txt)
 
-### Health Checks
+**Data Extraction:** Product name, description (Dutch), URL, category
 
-**Endpoint:** `/health`
+**Fallback:** Manual CSV upload if scraping infeasible
 
-**Checks:**
-- Database connectivity
-- External service availability
-- MCP connections (if used)
+---
 
-**Response:**
-```json
-{
-  "status": "healthy",
-  "services": {
-    "database": "up",
-    "service1": "up",
-    "service2": "degraded"
-  }
-}
+## Internal Services
+
+### PostgreSQL Database
+
+**Driver:** asyncpg 0.30.0
+
+**Connection:**
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/evi_rag
 ```
 
-### Alerting
+**See:** [database.md](database.md) for schema details
 
-**Alerts configured for:**
-- Service downtime
-- Rate limit approaching
-- Authentication failures
-- Slow response times
+### Neo4j Graph Database
 
-## Cost Management
+**Driver:** neo4j 5.28.1
 
-### Current Costs
+**Connection:**
+```bash
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=password123
+```
 
-| Service | Plan | Monthly Cost | Usage |
-|---------|------|--------------|-------|
-| [Service 1] | [Plan] | $X | [Usage details] |
-| [Service 2] | [Plan] | $Y | [Usage details] |
+**See:** [database.md](database.md) for graph schema
 
-**Total:** $X/month
-
-### Cost Optimization
-
-- [Strategy 1: e.g., caching to reduce API calls]
-- [Strategy 2: e.g., using free tiers where possible]
+---
 
 ## Security
 
-### API Keys
-
-- **Storage:** GitHub Secrets, environment variables
-- **Rotation:** [Frequency and process]
-- **Scope:** Minimal permissions principle
-
-### Data Privacy
-
-- **PII Handling:** [How user data is shared with services]
-- **Compliance:** [GDPR, CCPA considerations]
-- **Data Residency:** [Where data is processed/stored]
-
-## Disaster Recovery
-
-### Service Outages
-
-**If Service 1 goes down:**
-1. [Fallback strategy]
-2. [User communication]
-3. [Manual workaround if available]
-
-**If Database is unavailable:**
-1. [Backup restoration process]
-2. [Estimated recovery time]
-
-## Future Integrations
-
-### Planned (Phase 2/3)
-
-- [Integration name]: [Purpose and timeline]
-- [Integration name]: [Purpose and timeline]
-
-### Under Consideration
-
-- [Integration name]: [Pros/cons, decision pending]
+**API Keys:** Stored in `.env` file (`.gitignore`'d)
+**Production:** Use secrets management service (AWS Secrets Manager, Vault)
+**HTTPS:** All external APIs over HTTPS
+**Rate Limiting:** Implemented with exponential backoff
 
 ---
 
 **Note:** Update this document when:
-- New services are integrated
-- API versions change
-- Credentials are rotated
-- Costs change significantly
-- MCPs are added or removed
+- New external services are integrated
+- API endpoints or authentication methods change
+- Rate limits are updated
+
+**See Also:**
+- [architecture.md](architecture.md) - System architecture
+- [stack.md](stack.md) - Technology stack
+- [database.md](database.md) - Internal data storage
+- [`config/notion_config.py`](../../config/notion_config.py) - Notion configuration
