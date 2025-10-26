@@ -77,13 +77,19 @@ class GraphBuilder:
         if not chunks:
             return {"episodes_created": 0, "errors": []}
         
-        logger.info(f"Adding {len(chunks)} chunks to knowledge graph for document: {document_title}")
-        logger.info("⚠️ Large chunks will be truncated to avoid Graphiti token limits.")
-        
+        logger.info(f"🔧 Adding {len(chunks)} chunks to knowledge graph for document: {document_title}")
+        logger.info("⚠️  Large chunks will be truncated to avoid Graphiti token limits.")
+
         # Check for oversized chunks and warn
         oversized_chunks = [i for i, chunk in enumerate(chunks) if len(chunk.content) > 6000]
         if oversized_chunks:
-            logger.warning(f"Found {len(oversized_chunks)} chunks over 6000 chars that will be truncated: {oversized_chunks}")
+            logger.warning(f"📏 Found {len(oversized_chunks)} chunks over 6000 chars that will be truncated: {oversized_chunks}")
+
+        # Log statistics about chunk sizes
+        chunk_sizes = [len(chunk.content) for chunk in chunks]
+        avg_size = sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0
+        max_size = max(chunk_sizes) if chunk_sizes else 0
+        logger.info(f"📊 Chunk size stats: avg={avg_size:.0f} chars, max={max_size} chars, count={len(chunks)}")
         
         episodes_created = 0
         errors = []
@@ -120,27 +126,41 @@ class GraphBuilder:
                 )
                 
                 episodes_created += 1
-                logger.info(f"✓ Added episode {episode_id} to knowledge graph ({episodes_created}/{len(chunks)})")
-                
+
+                # Calculate and log progress with ETA
+                progress_pct = (episodes_created / len(chunks)) * 100
+                remaining = len(chunks) - episodes_created
+                logger.info(
+                    f"✅ Episode {episodes_created}/{len(chunks)} ({progress_pct:.1f}%) | "
+                    f"ID: {episode_id[:30]}... | "
+                    f"Size: {len(episode_content)} chars | "
+                    f"Remaining: {remaining}"
+                )
+
                 # Small delay between each episode to reduce API pressure
                 if i < len(chunks) - 1:
                     await asyncio.sleep(0.5)
                     
             except Exception as e:
-                error_msg = f"Failed to add chunk {chunk.index} to graph: {str(e)}"
+                error_msg = f"❌ Failed to add chunk {chunk.index} to graph: {str(e)}"
                 logger.error(error_msg)
+                logger.error(f"   Chunk size: {len(chunk.content)} chars, Episode ID: {episode_id}")
                 errors.append(error_msg)
-                
+
                 # Continue processing other chunks even if one fails
                 continue
         
         result = {
             "episodes_created": episodes_created,
             "total_chunks": len(chunks),
-            "errors": errors
+            "errors": errors,
+            "success_rate": (episodes_created / len(chunks) * 100) if chunks else 0
         }
-        
-        logger.info(f"Graph building complete: {episodes_created} episodes created, {len(errors)} errors")
+
+        logger.info(
+            f"🎉 Graph building complete: {episodes_created}/{len(chunks)} episodes created "
+            f"({result['success_rate']:.1f}% success rate), {len(errors)} errors"
+        )
         return result
     
     def _prepare_episode_content(

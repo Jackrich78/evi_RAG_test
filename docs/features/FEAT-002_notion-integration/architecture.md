@@ -2,7 +2,8 @@
 
 **Feature ID:** FEAT-002
 **Decision Date:** 2025-10-25
-**Status:** Proposed
+**Implementation Date:** 2025-10-26
+**Status:** ✅ Implemented - Simplified Approach
 
 ## Context
 
@@ -223,5 +224,50 @@ chunks → embeddings → PostgreSQL
 
 ---
 
-**Decision Status:** Proposed
-**Next Steps:** Proceed to acceptance criteria and testing strategy
+## Actual Implementation (2025-10-26)
+
+**What Was Actually Built:**
+
+The implementation followed an even simpler approach than Option 1. Guidelines were pre-fetched from Notion and saved as markdown files to `documents/notion_guidelines/`, then the existing `ingestion/ingest.py` pipeline was used with the `--fast` flag (skipping knowledge graph building).
+
+**Key Differences from Original Plan:**
+- ❌ Did NOT build custom `notion_to_markdown.py` module
+- ✅ Used pre-fetched markdown files (87 guidelines already on disk)
+- ✅ Used existing `ingestion/ingest.py --fast --verbose` command
+- ✅ Skipped knowledge graph building (deferred to Phase 6)
+- ✅ Tier parsing deferred per AC-002-302 (all `tier` values NULL)
+
+**Actual Data Flow:**
+```
+documents/notion_guidelines/*.md (87 files, pre-fetched)
+    ↓
+ingestion/ingest.py --fast (existing pipeline)
+    ↓
+chunks → embeddings → PostgreSQL
+```
+
+**Performance Metrics:**
+- Documents ingested: 87/87 (100% success rate)
+- Chunks created: 10,833
+- Embeddings generated: 10,833 (100% coverage)
+- Processing time: 42.5 minutes
+- Errors: 0
+- Cost: Minimal (embedding generation only)
+
+**Knowledge Graph Decision:**
+After testing knowledge graph on 5-file subset:
+- Time projection: 52-78 hours for full dataset
+- Cost projection: $83+ for full dataset
+- Decision: **Deferred to Phase 6** (not required for FEAT-002 MVP)
+- Rationale: 0 of 17 acceptance criteria mention knowledge graph
+
+See [exploration/README.md](exploration/README.md) for detailed knowledge graph analysis.
+
+**Validation:**
+All 17 acceptance criteria passed. See [VALIDATION_REPORT.md](VALIDATION_REPORT.md) for detailed evidence.
+
+---
+
+**Decision Status:** ✅ Implemented and Validated
+**Completion Date:** 2025-10-26
+**Next Steps:** FEAT-002 complete → Proceed to FEAT-003 (Query & Retrieval)

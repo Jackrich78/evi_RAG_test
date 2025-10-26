@@ -52,7 +52,9 @@ class GraphitiClient:
         # LLM configuration
         self.llm_base_url = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
         self.llm_api_key = os.getenv("LLM_API_KEY")
-        self.llm_choice = os.getenv("LLM_CHOICE", "gpt-4.1-mini")
+        # Use ingestion-specific model if set, otherwise fall back to main LLM model
+        # INGESTION_LLM_CHOICE should be gpt-4.1-mini or similar for Graphiti structured outputs
+        self.llm_choice = os.getenv("INGESTION_LLM_CHOICE") or os.getenv("LLM_CHOICE", "gpt-4.1-mini")
         
         if not self.llm_api_key:
             raise ValueError("LLM_API_KEY environment variable not set")
