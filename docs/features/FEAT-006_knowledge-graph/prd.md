@@ -1,10 +1,32 @@
 # PRD: FEAT-006 - Knowledge Graph Enhancement
 
 **Feature ID:** FEAT-006
-**Phase:** 6 (Optimization & Knowledge Graph)
+**Phase:** 6 (Optimization & Knowledge Graph) - **FUTURE FEATURE**
 **Status:** 📋 Planned (Deferred from FEAT-002)
 **Priority:** Low (Future Enhancement)
 **Owner:** TBD
+**Dependencies:** FEAT-003 (MVP must validate that graph is needed)
+**Created:** 2025-10-25
+**Last Updated:** 2025-10-26
+
+---
+
+## ⚠️ MVP Status: DESCOPED - Neo4j Empty, Graph Search Disabled
+
+**This feature is NOT part of the MVP (FEAT-003).** The MVP uses vector/hybrid search only. Neo4j container runs but database is empty.
+
+**Why Descoped:**
+- Graph population is expensive: 52-78 hours, $83+ cost for 87 documents
+- Vector + Dutch full-text search may be sufficient (needs validation)
+- MVP must prove whether graph adds value before investing time/money
+- Graph tools exist in code but are disabled/ignored for MVP
+
+**Current State:**
+- Neo4j container: Running but empty
+- Graph tools: `graph_search_tool`, `get_entity_relationships_tool` exist but unused
+- Graphiti integration: Configured but not populated
+
+**When to Implement:** After FEAT-003 MVP proves current search is insufficient (e.g., poor relationship queries, missing context).
 
 ---
 

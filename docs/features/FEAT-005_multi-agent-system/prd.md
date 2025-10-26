@@ -1,10 +1,27 @@
 # PRD: FEAT-005 - Multi-Agent System
 
 **Feature ID:** FEAT-005
-**Phase:** 5 (Intelligent Responses)
-**Status:** ⏳ Planned
-**Priority:** High
+**Phase:** 5 (Intelligent Responses) - **FUTURE FEATURE**
+**Status:** 📋 Planned (Post-MVP)
+**Priority:** Medium
 **Owner:** TBD
+**Dependencies:** FEAT-003 (MVP Specialist Agent), FEAT-008 (Session Memory)
+**Created:** 2025-10-25
+**Last Updated:** 2025-10-26
+
+---
+
+## ⚠️ MVP Status: DESCOPED
+
+**This feature is NOT part of the MVP (FEAT-003).** The MVP uses a single Specialist Agent with search tools, not a two-agent system.
+
+**Why Descoped:**
+- Single agent with tools is sufficient for MVP (simpler, faster)
+- Agent-calling-agent pattern adds complexity without clear MVP benefit
+- Pydantic AI research showed two agents only needed for separate reasoning loops
+- MVP proves RAG quality first, then optimize architecture
+
+**When to Implement:** After FEAT-003 is validated and if performance/quality issues emerge that multi-agent solves.
 
 ---
 

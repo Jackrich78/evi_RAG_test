@@ -103,16 +103,108 @@ User Query → Research Agent → [Vector Search + Graph Traversal + Product Loo
 
 6. **Verify setup**
    ```bash
-   python3 tests/test_supabase_connection.py
-   # Should see all ✅ checks passing
+   # Check database connection
+   PGPASSWORD=postgres psql -h localhost -U postgres -d evi_rag \
+     -c "SELECT COUNT(*) FROM chunks;"
+   # Should return: 10833
+
+   # Test Dutch full-text search
+   PGPASSWORD=postgres psql -h localhost -U postgres -d evi_rag \
+     -c "SELECT COUNT(*) FROM chunks WHERE to_tsvector('dutch', content) @@ plainto_tsquery('dutch', 'werken hoogte');"
+   # Should return: >0 (matches found)
    ```
+
+---
+
+## 🚀 Running the MVP (After FEAT-003 Implementation)
+
+### Start the API Server
+
+```bash
+# Ensure Docker containers are running
+docker-compose ps  # Should show: postgres (healthy), neo4j (healthy)
+
+# Activate virtual environment
+source venv_linux/bin/activate  # Linux/Mac
+
+# Start API server on port 8058 (configured in .env)
+python3 -m uvicorn agent.api:app --host 0.0.0.0 --port 8058 --reload
+```
+
+**Expected Output:**
+```
+INFO:     Uvicorn running on http://0.0.0.0:8058 (Press CTRL+C to quit)
+INFO:     Will watch for changes in these directories: ['/Users/builder/dev/evi_rag_test']
+INFO:     Started reloader process [12345] using StatReload
+INFO:     Started server process [12346]
+INFO:     Application startup complete.
+INFO:     Database initialized
+INFO:     Agentic RAG API startup complete
+```
+
+### Use the CLI
+
+```bash
+# In a new terminal, activate venv
+source venv_linux/bin/activate
+
+# Run CLI (connects to API on localhost:8058)
+python3 cli.py
+```
+
+**Expected Output:**
+```
+============================================================
+🤖 Agentic RAG with Knowledge Graph CLI
+============================================================
+Connected to: http://localhost:8058
+Type 'exit', 'quit', or Ctrl+C to exit
+Type 'help' for commands
+============================================================
+
+✓ API is healthy
+
+Ready to chat! Ask questions in Dutch about workplace safety.
+
+You:
+```
+
+### Test with Dutch Queries
+
+Try these Dutch workplace safety questions:
+
+```
+You: Wat zijn de vereisten voor werken op hoogte?
+# Expected: Dutch response with citations to NVAB/ARBO guidelines
+
+You: Hoe voorkom ik rugklachten bij werknemers?
+# Expected: Ergonomics and lifting guidelines with sources
+
+You: Welke maatregelen zijn nodig voor lawaai op de werkplek?
+# Expected: Noise regulations and hearing protection recommendations
+```
+
+### Check Health Status
+
+```bash
+# Test API health
+curl http://localhost:8058/health
+
+# Expected response:
+# {
+#   "status": "healthy",
+#   "database": "healthy",
+#   "graph": "skipped_for_mvp",
+#   "timestamp": "2025-10-26T18:30:45.123456"
+# }
+```
 
 ---
 
 ## 📊 Current Status
 
-**Phase 1-2**: ✅ Complete (Infrastructure + Data Models)
-**Phase 3**: ⏳ Next (Notion Integration - 3 tasks)
+**Phase 1-2**: ✅ Complete (Infrastructure + Notion Integration)
+**Phase 3A (MVP)**: 📋 Ready to Implement (Specialist Agent)
 
 See [docs/IMPLEMENTATION_PROGRESS.md](docs/IMPLEMENTATION_PROGRESS.md) for detailed progress tracking.
 
@@ -120,31 +212,40 @@ See [docs/IMPLEMENTATION_PROGRESS.md](docs/IMPLEMENTATION_PROGRESS.md) for detai
 
 **Infrastructure**:
 - ✅ PostgreSQL 17 + pgvector 0.8.1 (local, unlimited storage)
-- ✅ Neo4j 5.26.1 with APOC plugin
+- ✅ Neo4j 5.26.1 (empty, for future knowledge graph)
 - ✅ Docker Compose configuration with health checks
-- ✅ Data persistence verified across container restarts
+- ✅ FastAPI server and CLI ready
+- ✅ Search tools (vector, hybrid) implemented
+
+**Data**:
+- ✅ 87 Dutch workplace safety guidelines ingested
+- ✅ 10,833 chunks with embeddings generated
+- ✅ Dutch full-text search enabled and tested
 
 **Database Schema**:
-- ✅ 5 tables: documents, chunks (with tier), products, sessions, messages
-- ✅ 3 views: document_summaries, guideline_tier_stats, product_catalog_summary
-- ✅ 3 functions: hybrid_search (Dutch), search_guidelines_by_tier, search_products
-- ✅ Dutch language full-text search configured
+- ✅ 5 tables: documents, chunks (with tier column), products, sessions, messages
+- ✅ SQL functions: hybrid_search (Dutch), match_chunks, search_guidelines_by_tier
+- ✅ Indexes: ivfflat on embeddings, GIN on metadata
 
-**Data Models**:
-- ✅ 8 Pydantic models with validation (TieredGuideline, EVIProduct, etc.)
-- ✅ NotionConfig class for API integration
-- ✅ Type-safe models for all data structures
-
-**Testing**:
-- ✅ Database connection validation (100% passing)
-- ✅ Data persistence verification (100% passing)
+**Code Infrastructure**:
+- ✅ 8 Pydantic models with validation
+- ✅ Search tools (`agent/tools.py`) with hybrid search
+- ✅ Database utils (`agent/db_utils.py`) with connection pooling
+- ✅ FastAPI server (`agent/api.py`) with lifecycle management
+- ✅ CLI client (`cli.py`) with streaming support
 
 ### What's Next ⏳
 
-**Phase 3: Notion Integration** (3 tasks):
-1. Create Notion API client wrapper
-2. Implement tier-aware chunking strategy
-3. Build guideline ingestion pipeline
+**Phase 3A: Specialist Agent MVP** (5-8 hours):
+1. Create specialist agent with Dutch system prompt
+2. Integrate with existing API server
+3. Test with 10 Dutch queries
+4. Validate Dutch quality and citation accuracy
+
+**Documentation Ready:**
+- [FEAT-003 PRD](docs/features/FEAT-003_query-retrieval/prd.md)
+- [FEAT-003 Architecture](docs/features/FEAT-003_query-retrieval/architecture.md)
+- [FEAT-003 Implementation Guide](docs/features/FEAT-003_query-retrieval/implementation-guide.md)
 
 ---
 

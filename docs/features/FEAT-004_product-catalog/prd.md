@@ -1,10 +1,27 @@
 # PRD: FEAT-004 - Product Catalog Ingestion
 
 **Feature ID:** FEAT-004
-**Phase:** 4 (Product Knowledge)
-**Status:** ⏳ Planned
+**Phase:** 4 (Product Knowledge) - **FUTURE FEATURE**
+**Status:** 📋 Planned (Post-MVP)
 **Priority:** Medium
 **Owner:** TBD
+**Dependencies:** FEAT-003 (MVP Specialist Agent must be complete)
+**Created:** 2025-10-25
+**Last Updated:** 2025-10-26
+
+---
+
+## ⚠️ MVP Status: DESCOPED
+
+**This feature is NOT part of the MVP (FEAT-003).** The MVP focuses on guideline retrieval only, without product recommendations.
+
+**Why Descoped:**
+- Products table exists but is empty (no data ingested)
+- Specialist agent designed for guidelines-only for MVP
+- Product integration requires additional complexity (scraping, categorization, recommendations)
+- MVP must prove RAG quality before adding product features
+
+**When to Implement:** After FEAT-003 MVP is complete and validated (5-8 hours of testing).
 
 ---
 
