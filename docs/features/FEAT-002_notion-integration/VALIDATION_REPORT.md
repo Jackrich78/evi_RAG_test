@@ -279,7 +279,7 @@ FROM chunks;
 **Evidence:**
 - `.env` file present with required variables:
   ```
-  NOTION_API_TOKEN=REDACTED (valid token, 50+ chars)
+  NOTION_API_TOKEN=**************** (valid token, 50+ chars)
   NOTION_GUIDELINES_DATABASE_ID=REDACTED (valid hex, 32 chars)
   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/evi_rag (valid, tested)
   ```
