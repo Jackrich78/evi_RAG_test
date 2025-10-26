@@ -45,3 +45,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 *.log
+
+# Documents
+/Documents/notion_guidelines

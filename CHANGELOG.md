@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - FEAT-002 Planning Complete (2025-10-25)
+- FEAT-002: Notion Integration (MVP) planning documentation complete - Ready for implementation
+  - [Architecture Decision](docs/features/FEAT-002_notion-integration/architecture.md) (1,410 words)
+  - [Acceptance Criteria](docs/features/FEAT-002_notion-integration/acceptance.md) (1,576 words)
+  - [Testing Strategy](docs/features/FEAT-002_notion-integration/testing.md) (1,568 words)
+  - [Manual Test Guide](docs/features/FEAT-002_notion-integration/manual-test.md) (2,196 words)
+  - Test stubs: 13 tests in 2 files (tests/ingestion/test_notion_to_markdown.py, test_notion_integration.py)
+
 ### Added - Phase 3-5 Planning (2025-10-25)
 - Created [FEAT-002 PRD](docs/features/FEAT-002_notion-integration/prd.md) for Notion Integration (Phase 3)
-- Created [FEAT-003 PRD](docs/features/FEAT-003_product-ingestion/prd.md) for Product Ingestion (Phase 4)
-- Created [FEAT-004 PRD](docs/features/FEAT-004_multi-agent-system/prd.md) for Multi-Agent System (Phase 5)
+- Created [FEAT-003 PRD](docs/features/FEAT-003_query-retrieval/prd.md) for Query & Retrieval System (Phase 4)
+- Created [FEAT-004 PRD](docs/features/FEAT-004_product-catalog/prd.md) for Product Catalog Integration (Phase 4)
+- Created [FEAT-005 PRD](docs/features/FEAT-005_multi-agent-system/prd.md) for Multi-Agent RAG System (Phase 5)
 
 ### Changed - Documentation Update (2025-10-25)
 - Archived original template files to `docs/features/archive/original-templates/`
