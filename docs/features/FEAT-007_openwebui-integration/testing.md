@@ -1,151 +1,235 @@
-# Testing Strategy: FEAT-007 OpenWebUI Integration
+# Testing Strategy: OpenWebUI Integration
 
 **Feature ID:** FEAT-007
-**Feature Name:** OpenWebUI Integration
-**Last Updated:** 2025-10-30
-**Status:** Planning Complete
+**Created:** 2025-10-30
+**Test Coverage Goal:** 80% for new OpenAI endpoints
+
+## Test Strategy Overview
+
+This feature uses a **moderate testing approach** (from research.md Topic 10) balancing thoroughness with speed. We focus on automated endpoint tests for API compatibility and manual testing via OpenWebUI for UX validation. No Playwright/Selenium automation in Phase 1 - manual testing ensures quality without over-engineering.
+
+**Testing Levels:**
+- ✅ Unit Tests: OpenAI endpoint validation (4 automated tests)
+- ✅ Integration Tests: Full stack flow (specialist agent → database → response)
+- ✅ Manual Tests: 10 Dutch queries via OpenWebUI UI
+- ❌ E2E Tests: Not in scope for Phase 1 (overkill for MVP)
 
 ---
 
-## Overview
+## Unit Tests
 
-This document defines the comprehensive testing strategy for integrating OpenWebUI as the frontend chat interface for the EVI 360 RAG system. Testing focuses on OpenAI API compatibility, Dutch language support, streaming responses, citation rendering, and conversation management.
+*Tests for individual API endpoints in isolation with mocked specialist agent.*
 
----
+### Test Files to Create
 
-## Test Levels
+#### `tests/agent/test_openai_api.py`
 
-### 1. Unit Tests
+**Purpose:** Validate `/v1/chat/completions` and `/v1/models` endpoints match OpenAI specification
 
-**Scope:** Individual API endpoint functions and response formatting logic.
+**Test Stubs:**
 
-**Test Files:**
-- `tests/agent/test_openai_api.py` - OpenAI-compatible API endpoints
+1. **Test: Non-Streaming Chat Completions** (AC-007-001)
+   - **Given:** FastAPI TestClient and mocked specialist response
+   - **When:** POST to `/v1/chat/completions` with `stream: false` and Dutch query
+   - **Then:** Response matches OpenAI format (id, object, created, choices, usage fields)
+   - **Mocks:** `run_specialist_query()` returns pre-defined Dutch response with citations
 
-**Key Test Cases:**
-1. **Non-streaming chat completions** - Validate JSON response format matches OpenAI spec
-2. **Streaming chat completions** - Validate SSE format with `data:` prefix and `[DONE]` marker
-3. **Model listing endpoint** - Validate `/v1/models` returns EVI specialist model
-4. **Error handling** - Validate 400/500 error responses match OpenAI format
+2. **Test: Streaming Chat Completions** (AC-007-002)
+   - **Given:** FastAPI TestClient and mocked specialist response
+   - **When:** POST to `/v1/chat/completions` with `stream: true`
+   - **Then:** Response is SSE stream with `data:` prefix, delta chunks, and `data: [DONE]`
+   - **Mocks:** `run_specialist_query()` returns chunked content
 
-**Coverage Goal:** 85% line coverage for new OpenAI API endpoints
+3. **Test: Model Listing** (AC-007-010)
+   - **Given:** FastAPI TestClient
+   - **When:** GET to `/v1/models`
+   - **Then:** Response includes `evi-specialist` model with OpenAI-compatible structure
+   - **Mocks:** None (reads from static config)
 
-**Dependencies:**
-- FastAPI TestClient for HTTP testing
-- pytest fixtures for mock guideline data
-- No external API calls (mock `run_specialist_query()`)
+4. **Test: Error Handling** (AC-007-015)
+   - **Given:** FastAPI TestClient
+   - **When:** POST with empty messages array OR database error simulated
+   - **Then:** Error response matches OpenAI error format with Dutch messages
+   - **Mocks:** Database connection failure to trigger 500 error
 
----
+5. **Test: Dutch Language Detection** (Optional)
+   - **Given:** FastAPI TestClient
+   - **When:** Query contains Dutch words
+   - **Then:** `language: "nl"` passed to specialist agent
+   - **Mocks:** Verify specialist agent called with correct language parameter
 
-### 2. Integration Tests
-
-**Scope:** End-to-end flow from OpenWebUI request to RAG response with real components.
-
-**Test Files:**
-- `tests/integration/test_openwebui_flow.py` - Full request/response cycle
-
-**Key Test Cases:**
-1. **Dutch query through OpenAI endpoint** - Verify language detection and Dutch response
-2. **Citation extraction and formatting** - Verify citations parsed from specialist response
-3. **Conversation history integration** - Verify multi-turn conversations maintain context
-4. **Streaming with citations** - Verify citations appear after content in stream
-
-**Coverage Goal:** 70% integration coverage (moderate approach per research.md)
-
-**Dependencies:**
-- Running PostgreSQL with test guidelines data
-- pgvector with embedded test documents
-- Redis for session management (if implemented)
+6. **Test: Citation Formatting** (Optional)
+   - **Given:** Specialist returns citations in response
+   - **When:** Response formatted for OpenAI
+   - **Then:** Citations embedded in content or metadata with "📚 Bronnen:" section
+   - **Mocks:** Specialist response with 2+ citations
 
 ---
 
-### 3. Manual Testing
+### Unit Test Coverage Goals
 
-**Scope:** Human validation of UX, Dutch language quality, and visual citation rendering in OpenWebUI interface.
+- **Functions:** All new endpoint functions tested (`openai_chat_completions`, `list_models`)
+- **Branches:** Both streaming and non-streaming code paths
+- **Edge Cases:** Empty input, invalid model, missing messages
+- **Error Handling:** Database errors, specialist agent failures, timeouts
 
-**Test Files:**
-- `docs/features/FEAT-007_openwebui-integration/manual-test.md` - Step-by-step guide
-
-**Key Scenarios:**
-1. Access OpenWebUI at localhost:3000
-2. Ask 10 Dutch workplace safety questions
-3. Verify streaming responses appear smoothly
-4. Verify citation rendering in "📚 Bronnen" section
-5. Verify conversation history persistence
-6. Test error scenarios (empty query, system overload)
-
-**Acceptance Criteria:**
-- All 10 Dutch queries return relevant guidelines
-- Citations render with document titles and links
-- Response time <2 seconds for tier 1 summaries
-- No UI errors or broken layouts
+**Target Coverage:** 80% line coverage for new OpenAI endpoints in `agent/api.py`
 
 ---
 
-### 4. End-to-End (E2E) Tests
+## Integration Tests
 
-**Scope:** Not required for Phase 1 (moderate testing approach). E2E tests with Playwright or Selenium deferred to Phase 2.
+*Tests for full stack interactions with real database and specialist agent.*
 
-**Rationale:** Manual testing covers UX validation sufficiently for MVP. Automated E2E adds complexity without proportional value at this stage.
+### Test Files to Create
+
+#### `tests/integration/test_openwebui_integration.py`
+
+**Purpose:** Validate end-to-end flow from OpenWebUI request through specialist agent to database
+
+**Test Stubs:**
+
+1. **Test: Dutch Query Through Full Stack**
+   - **Components:** API → specialist_agent → hybrid_search → PostgreSQL
+   - **Setup:** Real PostgreSQL with test guideline data, real specialist agent (no mocks)
+   - **Scenario:** Send Dutch query "Wat is valbeveiliging?" → verify Dutch response with citations
+   - **Assertions:** Response in Dutch, ≥2 citations, relevant chunks retrieved from DB
+
+2. **Test: Streaming with Real Specialist Agent**
+   - **Components:** API → specialist_agent (streaming mode) → database
+   - **Setup:** Real database, real agent
+   - **Scenario:** POST with `stream: true` → collect all SSE chunks → verify complete response
+   - **Assertions:** Stream format correct, citations appear, content is Dutch
+
+3. **Test: Conversation Context Maintenance** (If history implemented)
+   - **Components:** API → OpenWebUI history → specialist agent
+   - **Setup:** Mock OpenWebUI sending multi-turn conversation
+   - **Scenario:** Send query 1, then query 2 referencing query 1 context
+   - **Assertions:** Agent uses full message history, context maintained
+
+---
+
+### Integration Test Scope
+
+**Internal Integrations:**
+- API endpoint → specialist_agent.run_specialist_query(): Validates correct parameter passing
+- specialist_agent → tools.hybrid_search_tool(): Validates search execution
+- hybrid_search_tool → db_utils: Validates database queries with Dutch text
+
+**External Integrations:**
+- PostgreSQL: Real queries with Dutch full-text search and pgvector
+- OpenAI/LLM: Real API calls (use test API key with quota limits)
+
+**Mock Strategy:**
+- **Fully Mocked:** None for integration tests (defeats purpose)
+- **Partially Mocked:** LLM calls can use smaller/cheaper model for tests
+- **Real:** Database, specialist agent, search tools (authentic integration)
+
+---
+
+## E2E Tests (Not Applicable)
+
+*Phase 1 does not include automated E2E tests. Manual testing via OpenWebUI UI replaces this.*
+
+**Rationale:** Research.md Topic 10 recommends "moderate testing" - manual testing is faster and more appropriate for MVP validation than Playwright automation (which would add 1-2 days).
+
+---
+
+## Manual Testing
+
+*Tests requiring human verification through OpenWebUI web interface.*
+
+### Manual Test Scenarios
+
+**See `manual-test.md` for detailed step-by-step instructions.**
+
+**Quick Reference:**
+1. **Access OpenWebUI Interface** - Verify UI loads at localhost:3000
+2. **Basic Dutch Guideline Query** - Test streaming, citations, Dutch response
+3. **Multi-Turn Conversation** - Verify context maintained across turns
+4. **Citation Rendering** - Verify "📚 Bronnen:" section with blockquotes
+5. **10 Dutch Test Queries** - Validate response quality across diverse topics
+
+**Manual Test Focus:**
+- **Visual Verification:** Citation formatting (blockquotes, emoji), markdown rendering
+- **User Experience:** Streaming smoothness, response clarity, error messages
+- **Language Quality:** Dutch grammar, no English contamination, proper terminology
+- **Cross-browser:** Chrome and Firefox on desktop
 
 ---
 
 ## Test Data Requirements
 
-### Guideline Test Data
+### Fixtures & Seed Data
 
-**Required Test Documents:**
-- 3 Dutch guideline documents (tier 1, 2, 3 structure)
-- Topics: Werken op hoogte, Persoonlijke beschermingsmiddelen, Brandveiligheid
-- Embedded in pgvector test database
-
-**Format:**
-```sql
-INSERT INTO evi_guidelines (title, content, tier, language, embedding)
-VALUES
-  ('Werken op hoogte', 'Samenvatting: Gebruik altijd valbescherming...', 1, 'nl', [0.1, 0.2, ...]),
-  ('PSA Richtlijnen', 'Belangrijkste feiten: Helm, handschoenen...', 2, 'nl', [0.3, 0.4, ...]);
-```
-
-### Mock Responses
-
-**Specialist Agent Mock:**
+**Unit Test Fixtures:**
 ```python
+# Mock specialist response fixture
+@pytest.fixture
 def mock_specialist_response():
     return {
-        "response": "Bij werken op hoogte moet u altijd valbescherming gebruiken...",
+        "content": "Bij werken op hoogte moet u valbescherming gebruiken...",
         "citations": [
-            {"title": "Werken op hoogte richtlijn", "doc_id": "DOC-001", "tier": 1}
+            {"title": "NVAB Richtlijn: Werken op Hoogte", "source": "NVAB", "quote": "..."},
+            {"title": "STECR Veiligheidsnormen", "source": "STECR", "quote": "..."}
         ],
-        "language": "nl"
+        "search_metadata": {"chunks_retrieved": 5}
     }
+```
+
+**Integration Test Data:**
+- PostgreSQL test database with 3-5 Dutch guideline documents
+- Topics: Werken op hoogte, PSA, Brandveiligheid (minimum)
+- Embeddings pre-generated for test documents
+
+**Manual Test Data:**
+- 10 Dutch test queries (from research.md Topic 10)
+- Expected response templates for comparison
+
+---
+
+## Mocking Strategy
+
+### What to Mock
+
+**Always Mock (Unit Tests):**
+- `run_specialist_query()` function - Returns pre-defined response
+- Database calls - Use in-memory mock or fixture data
+- LLM API calls - Mock to avoid costs and ensure deterministic tests
+
+**Sometimes Mock:**
+- LLM calls in integration tests - Use cheaper model (gpt-3.5-turbo vs gpt-4)
+
+**Never Mock (Integration Tests):**
+- Database queries (use real PostgreSQL test DB)
+- Specialist agent logic
+- Hybrid search functionality
+
+### Mocking Approach
+
+**Framework:** pytest with `unittest.mock` or `pytest-mock`
+
+**Mock Examples:**
+```python
+from unittest.mock import patch, AsyncMock
+
+@patch('agent.specialist_agent.run_specialist_query')
+async def test_openai_endpoint(mock_query, client):
+    mock_query.return_value = AsyncMock(
+        content="Dutch response text",
+        citations=[...]
+    )
+    response = client.post("/v1/chat/completions", json={...})
+    assert response.status_code == 200
 ```
 
 ---
 
-## Test Environment Setup
+## Test Execution
 
-### Prerequisites
+### Running Tests Locally
 
-1. **Docker containers running:**
-   - PostgreSQL (port 5432)
-   - pgvector extension enabled
-   - Redis (port 6379) - optional for Phase 1
-   - OpenWebUI (port 3000)
-   - EVI API (port 8058)
-
-2. **Test database initialized:**
-   - Schema: `sql/schema.sql`
-   - EVI additions: `sql/evi_schema_additions.sql`
-   - Test data: 3 Dutch guidelines embedded
-
-3. **Environment variables:**
-   - `DATABASE_URL` pointing to test database
-   - `OPENAI_API_KEY` (for embeddings, can be mock in tests)
-   - `API_PORT=8058`
-
-### Test Execution Commands
-
+**Unit Tests:**
 ```bash
 # Activate virtual environment
 source venv_linux/bin/activate
@@ -153,140 +237,152 @@ source venv_linux/bin/activate
 # Run unit tests only
 python3 -m pytest tests/agent/test_openai_api.py -v
 
+# Run with coverage
+python3 -m pytest tests/agent/test_openai_api.py --cov=agent.api --cov-report=term-missing
+```
+
+**Integration Tests:**
+```bash
+# Ensure Docker containers running
+docker-compose up -d postgres
+
 # Run integration tests
-python3 -m pytest tests/integration/test_openwebui_flow.py -v
+python3 -m pytest tests/integration/test_openwebui_integration.py -v -s
+```
 
-# Run all tests with coverage
-python3 -m pytest --cov=agent --cov-report=html
-
-# Manual testing - start services
+**Manual Tests:**
+```bash
+# Start all services
 docker-compose up -d
-python3 -m uvicorn agent.api:app --port 8058 --reload
-# Then follow manual-test.md steps
+
+# Access OpenWebUI at http://localhost:3000
+# Follow manual-test.md for step-by-step validation
 ```
 
----
+### CI/CD Integration (Phase 2 - Future)
 
-## Test Stub Generation
+**Pipeline Stages:**
+1. Unit tests (run on every commit) - Must pass before merge
+2. Integration tests (run on every commit) - Must pass before merge
+3. Manual test checklist (run before release) - Human validation required
+4. Coverage report generation - Enforce 80% minimum for new code
 
-The following test stubs will be created in **`tests/agent/test_openai_api.py`**:
-
-### Test Stub 1: Non-Streaming Chat Completions
-```python
-def test_openai_chat_completions_non_streaming():
-    """
-    Test /v1/chat/completions endpoint with stream=false.
-
-    Validates:
-    - AC-007-001: Basic guideline query returns tier 1 summary
-    - Response format matches OpenAI Chat Completion object
-    - Dutch language response
-    - Citations included in response
-
-    TODO: Implement test logic
-    """
-    pass
-```
-
-### Test Stub 2: Streaming Chat Completions
-```python
-def test_openai_chat_completions_streaming():
-    """
-    Test /v1/chat/completions endpoint with stream=true.
-
-    Validates:
-    - AC-007-002: Streaming response uses SSE format
-    - Each chunk has 'data: ' prefix
-    - Stream ends with 'data: [DONE]'
-    - Citations streamed after content
-
-    TODO: Implement test logic
-    """
-    pass
-```
-
-### Test Stub 3: Model Listing
-```python
-def test_list_models():
-    """
-    Test /v1/models endpoint returns EVI specialist model.
-
-    Validates:
-    - AC-007-010: Model list includes 'evi-specialist-v1'
-    - Response format matches OpenAI Models list
-    - Model metadata includes capabilities
-
-    TODO: Implement test logic
-    """
-    pass
-```
-
-### Test Stub 4: Error Handling
-```python
-def test_error_handling():
-    """
-    Test error responses match OpenAI format.
-
-    Validates:
-    - AC-007-015: Empty queries return 400 error
-    - AC-007-016: System errors return 500 error
-    - Error format matches OpenAI error object
-    - Error messages in Dutch
-
-    TODO: Implement test logic
-    """
-    pass
-```
+**Failure Handling:**
+- Failing unit tests block merge automatically
+- Failing integration tests block merge
+- Manual tests documented in test report, blocking if critical failures
 
 ---
 
 ## Coverage Goals
 
-| Test Level | Coverage Target | Rationale |
-|------------|----------------|-----------|
-| Unit Tests | 85% | High coverage for API endpoints (critical for compatibility) |
-| Integration Tests | 70% | Moderate coverage for full flow (per research decision) |
-| Manual Tests | 100% | All 10 Dutch queries must be validated by human |
-| E2E Tests | 0% (Phase 1) | Deferred to Phase 2 (MVP uses manual testing) |
+### Coverage Targets
 
-**Overall Strategy:** Moderate testing approach balancing speed and reliability. Focus on critical path (Dutch queries → citations) with manual validation of UX.
+| Test Level | Target Coverage | Minimum Acceptable |
+|------------|----------------|-------------------|
+| Unit | 85% | 80% |
+| Integration | 70% | 60% |
+| Manual | N/A (workflow-based) | 8/10 queries pass |
 
----
+### Critical Paths
 
-## Success Criteria
+**Must Have 100% Coverage:**
+- Error handling for database failures
+- OpenAI format validation (request/response structure)
+- Citation extraction and formatting logic
 
-Testing is complete when:
-- ✅ All 4 unit test stubs implemented and passing
-- ✅ Integration tests validate full OpenWebUI → EVI API → RAG flow
-- ✅ Manual testing guide executed with 10 Dutch queries
-- ✅ Coverage reports show ≥85% for OpenAI endpoints
-- ✅ No blocking bugs in manual test scenarios
-- ✅ Citation rendering validated in OpenWebUI interface
-
----
-
-## Risks & Mitigations
-
-| Risk | Impact | Mitigation |
-|------|--------|-----------|
-| OpenAI API spec changes | High | Pin OpenWebUI version, monitor API changelog |
-| Streaming format incompatibility | High | Test with real OpenWebUI client, not just unit tests |
-| Dutch language quality issues | Medium | Include manual review by native speaker in AC |
-| Citation rendering breaks | Medium | Manual test scenario specifically validates citations |
-| Test data embedding failures | Low | Use fixed test embeddings, not live OpenAI calls |
+**Can Have Lower Coverage:**
+- Logging statements
+- Configuration loading
+- Non-critical metadata fields
 
 ---
 
-## Next Steps (Phase 2)
+## Performance Testing
 
-1. Implement test stubs with actual test logic
-2. Set up CI pipeline to run tests on every commit
-3. Add E2E tests with Playwright if manual testing becomes bottleneck
-4. Performance testing for concurrent users (load testing with Locust)
-5. Security testing for API key validation and rate limiting
+*From AC-007-018: Response time requirements*
+
+### Performance Benchmarks
+
+**Requirement:** Tier 1 responses <2 seconds (P95)
+
+**Test Approach:**
+- **Tool:** Manual timing during manual tests (Phase 1), automated load testing (Phase 2)
+- **Scenarios:**
+  1. Single query: Response time <2 seconds
+  2. 10 concurrent queries: All complete within 3 seconds (P95)
+
+**Acceptance:**
+- 2 seconds response time for tier 1 guideline queries
+- 3 seconds P95 under concurrent load (10 users)
+
+**Note:** Full load testing deferred to Phase 2. Manual tests will measure single-query performance only.
 
 ---
 
-**Template Version:** 1.0.0
-**Word Count:** 792 words
-**Status:** Ready for Reviewer validation
+## Security Testing
+
+*From AC-007-007 through AC-007-009: Authentication requirements*
+
+### Security Test Scenarios
+
+1. **Authentication Check:** Verify login required before accessing chat (manual test)
+2. **Session Isolation:** Verify multi-user sessions don't leak data (integration test)
+3. **Input Validation:** Verify no SQL injection via query input (unit test)
+4. **Error Message Safety:** Verify errors don't expose sensitive info (unit test)
+
+**Tools:**
+- Manual testing for auth flow
+- Integration tests for session isolation
+- Unit tests for input sanitization
+
+---
+
+## Test Stub Generation (Phase 1)
+
+*Test files created with TODO stubs during planning phase:*
+
+```
+tests/
+├── agent/
+│   └── test_openai_api.py (4 primary test stubs + 2 optional)
+└── integration/
+    └── test_openwebui_integration.py (3 integration test stubs)
+```
+
+**Total Test Stubs:** 9 test functions with TODO comments
+
+**Stub Format:**
+```python
+def test_function_name(client, fixtures):
+    """
+    Test description.
+
+    Validates: AC-007-XXX
+
+    TODO: Implement test logic
+    - Step 1
+    - Step 2
+    - Step 3
+    """
+    pass
+```
+
+---
+
+## Out of Scope
+
+*What we're explicitly NOT testing in Phase 1:*
+
+- **Automated E2E tests** - Manual testing sufficient for MVP
+- **Load testing** - Deferred to Phase 2 (performance monitoring)
+- **Multi-browser automation** - Manual cross-browser checks only
+- **Accessibility automation** - Manual WCAG checks (keyboard nav, contrast)
+- **Product recommendations** - Feature not in FEAT-007 scope
+
+---
+
+**Next Steps:**
+1. Planner generates test stub files (complete)
+2. Phase 2: Implementer makes stubs functional
+3. Phase 2: Execute tests and validate AC compliance

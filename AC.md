@@ -101,4 +101,62 @@ This file tracks all acceptance criteria across all features in the project. Eac
 
 ---
 
-**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) = 52
+## FEAT-007: OpenWebUI Integration
+
+### Functional Criteria
+
+#### Story 1: Chat Interface for Guideline Queries
+
+- **AC-007-001:** Given I am logged into the OpenWebUI chat interface, when I type "Wat zijn de richtlijnen voor werken op hoogte?" (What are guidelines for working at height?), then the system returns tier 1 summary guidelines for working at height in Dutch, and the response appears within 2 seconds, and the formatting is readable with proper line breaks and structure
+
+- **AC-007-002:** Given I have received a tier 1 summary response, when I ask a follow-up question "Geef me meer details" (Give me more details), then the system retrieves tier 2 key facts for the same guideline topic, and maintains context from the previous query, and provides clear navigation hints for accessing tier 3 if available
+
+- **AC-007-003:** Given I am viewing guideline information, when I ask "Welke producten raad je aan voor deze situatie?" (Which products do you recommend for this situation?), then the system returns relevant products from the catalog with compliance tags, and includes product names, descriptions, and safety certifications, and links products to specific guideline requirements
+
+#### Story 2: Multi-Turn Conversation Support
+
+- **AC-007-004:** Given I have asked 3 questions about ladder safety in a conversation, when I ask "Wat zijn de verschillen met steigers?" (What are the differences with scaffolding?), then the system understands I'm comparing ladder vs. scaffolding safety, and maintains the conversation history visible in the UI, and provides contextually relevant comparisons
+
+- **AC-007-005:** Given I am in a conversation about fall protection, when I ask an unrelated question "Wat zijn de regels voor gehoorbescherming?" (What are the rules for hearing protection?), then the system detects the topic change, and starts a new context for hearing protection guidelines, and does not confuse previous fall protection context with new topic
+
+- **AC-007-006:** Given I am logged into the system, when I close the browser and return later, then I can see my previous conversation history, and I can continue previous conversations from where I left off, and conversation history is scoped to my user account only
+
+#### Story 3: Secure User Authentication
+
+- **AC-007-007:** Given I navigate to the OpenWebUI interface, when I attempt to access the chat without logging in, then I am redirected to a login page, and I cannot send queries until authenticated, and I see clear instructions for obtaining access credentials
+
+- **AC-007-008:** Given I have successfully logged in, when my session expires after 2 hours of inactivity, then I am prompted to re-authenticate, and my conversation history is preserved after re-login, and I can resume my previous session state
+
+- **AC-007-009:** Given two users are logged in simultaneously, when both users send queries at the same time, then each user's conversation remains isolated, and no cross-contamination of responses occurs, and each user sees only their own chat history
+
+#### Story 4: Docker Deployment
+
+- **AC-007-010:** Given I have the project repository cloned, when I run `docker-compose up` in the project root, then all services start successfully (OpenWebUI, FastAPI, PostgreSQL), and OpenWebUI is accessible at http://localhost:3000, and FastAPI is accessible at http://localhost:8000, and health checks pass for all containers within 30 seconds
+
+- **AC-007-011:** Given I need to configure API keys and database credentials, when I create a `.env` file with required variables, then all services read configuration from environment variables, and sensitive values are not hardcoded in Docker images, and the system provides clear error messages for missing variables
+
+- **AC-007-012:** Given the system is running with active conversations, when I restart the Docker containers, then conversation history is preserved in PostgreSQL, and users can resume their sessions after restart, and no data loss occurs during normal restarts
+
+### Edge Cases & Error Scenarios
+
+- **AC-007-013:** Given I am in the chat interface, when I submit an empty message or only whitespace, then the system prompts me to enter a valid question, and does not make unnecessary API calls, and provides example queries to guide me
+
+- **AC-007-014:** Given I query for a guideline that doesn't exist in the database, when I ask "Wat zijn de regels voor ruimtereizen?" (What are the rules for space travel?), then the system responds with "Geen richtlijnen gevonden" (No guidelines found), and suggests related topics or broader search terms, and logs the query for potential content gap analysis
+
+- **AC-007-015:** Given the FastAPI backend is down or unreachable, when I send a query in the chat interface, then I receive an error message "Backend service tijdelijk niet beschikbaar" (Backend service temporarily unavailable), and the system retries the request automatically (max 3 attempts), and provides an estimated time for resolution if available
+
+- **AC-007-016:** Given 10 users are sending queries simultaneously, when all queries are submitted within the same second, then all users receive responses within 3 seconds (P95), and no requests timeout or fail due to concurrency, and response accuracy is not degraded under load
+
+### Non-Functional Requirements
+
+- **AC-007-017:** Given all safety guidelines are in Dutch, when I query in Dutch using natural language, then the LLM correctly interprets Dutch queries, and responses maintain proper Dutch grammar and terminology, and technical safety terms are not mistranslated
+
+- **AC-007-018:** Given I send a guideline query, when the system processes the request, then tier 1 responses return in <2 seconds (P95), and tier 2/3 responses return in <3 seconds (P95), and product recommendation queries return in <2.5 seconds (P95)
+
+- **AC-007-019:** Given I access OpenWebUI from a mobile device, when I use the chat interface on a screen <768px width, then the UI is fully responsive and usable, and all features work on touch interfaces, and text is readable without horizontal scrolling
+
+- **AC-007-020:** Given I am a user with accessibility needs, when I use screen reader software with OpenWebUI, then all chat messages are announced clearly, and keyboard navigation works for all features, and color contrast meets WCAG 2.1 AA standards
+
+---
+
+**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) = 72
