@@ -19,6 +19,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 from .agent import rag_agent, AgentDependencies
+from .specialist_agent import run_specialist_query
 from .db_utils import (
     initialize_database,
     close_database,
@@ -419,91 +420,73 @@ async def chat_stream(request: ChatRequest):
         session_id = await get_or_create_session(request)
         
         async def generate_stream():
-            """Generate streaming response using agent.iter() pattern."""
+            """Generate streaming response using specialist agent (FEAT-003)."""
             try:
+                # 1. Send session event
                 yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
-                
-                # Create dependencies
-                deps = AgentDependencies(
-                    session_id=session_id,
-                    user_id=request.user_id
-                )
-                
-                # Get conversation context
-                context = await get_conversation_context(session_id)
-                
-                # Build input with context
-                full_prompt = request.message
-                if context:
-                    context_str = "\n".join([
-                        f"{msg['role']}: {msg['content']}"
-                        for msg in context[-6:]
-                    ])
-                    full_prompt = f"Previous conversation:\n{context_str}\n\nCurrent question: {request.message}"
-                
-                # Save user message immediately
+
+                # 2. Save user message immediately
                 await add_message(
                     session_id=session_id,
                     role="user",
                     content=request.message,
                     metadata={"user_id": request.user_id}
                 )
-                
-                full_response = ""
-                
-                # Stream using agent.iter() pattern
-                async with rag_agent.iter(full_prompt, deps=deps) as run:
-                    async for node in run:
-                        if rag_agent.is_model_request_node(node):
-                            # Stream tokens from the model
-                            async with node.stream(run.ctx) as request_stream:
-                                async for event in request_stream:
-                                    from pydantic_ai.messages import PartStartEvent, PartDeltaEvent, TextPartDelta
-                                    
-                                    if isinstance(event, PartStartEvent) and event.part.part_kind == 'text':
-                                        delta_content = event.part.content
-                                        yield f"data: {json.dumps({'type': 'text', 'content': delta_content})}\n\n"
-                                        full_response += delta_content
-                                        
-                                    elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
-                                        delta_content = event.delta.content_delta
-                                        yield f"data: {json.dumps({'type': 'text', 'content': delta_content})}\n\n"
-                                        full_response += delta_content
-                
-                # Extract tools used from the final result
-                result = run.result
-                tools_used = extract_tool_calls(result)
-                
-                # Send tools used information
-                if tools_used:
-                    tools_data = [
+
+                # 3. Use specialist agent to generate response with citations
+                response = await run_specialist_query(
+                    query=request.message,
+                    session_id=session_id,
+                    user_id=request.user_id or "cli_user",
+                    language=request.language
+                )
+
+                # 4. Simulate streaming by chunking content (gives typing effect)
+                CHUNK_SIZE = 20  # Characters per chunk
+                for i in range(0, len(response.content), CHUNK_SIZE):
+                    chunk = response.content[i:i+CHUNK_SIZE]
+                    yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
+                    await asyncio.sleep(0.01)  # Small delay for typing effect
+
+                # 5. Send citations as "tools" event (CLI already displays these nicely)
+                if response.citations:
+                    citations_as_tools = [
                         {
-                            "tool_name": tool.tool_name,
-                            "args": tool.args,
-                            "tool_call_id": tool.tool_call_id
+                            "tool_name": "citation",
+                            "args": {
+                                "title": citation.title,
+                                "source": citation.source,
+                                "quote": citation.quote or ""
+                            }
                         }
-                        for tool in tools_used
+                        for citation in response.citations
                     ]
-                    yield f"data: {json.dumps({'type': 'tools', 'tools': tools_data})}\n\n"
-                
-                # Save assistant response
+                    # Debug: Log what citations we're sending
+                    logger.info(f"Sending {len(citations_as_tools)} citations:")
+                    for idx, cit in enumerate(citations_as_tools, 1):
+                        logger.info(f"  Citation {idx}: title='{cit['args']['title']}', source='{cit['args']['source']}'")
+                    yield f"data: {json.dumps({'type': 'tools', 'tools': citations_as_tools})}\n\n"
+
+                # 6. Save assistant response with metadata
                 await add_message(
                     session_id=session_id,
                     role="assistant",
-                    content=full_response,
+                    content=response.content,
                     metadata={
                         "streamed": True,
-                        "tool_calls": len(tools_used)
+                        "citations": len(response.citations),
+                        "search_metadata": response.search_metadata
                     }
                 )
-                
+
+                # 7. Send end event
                 yield f"data: {json.dumps({'type': 'end'})}\n\n"
-                
+
             except Exception as e:
                 logger.error(f"Stream error: {e}")
                 error_chunk = {
                     "type": "error",
-                    "content": f"Stream error: {str(e)}"
+                    "content": f"Er is een fout opgetreden. Probeer het opnieuw."
                 }
                 yield f"data: {json.dumps(error_chunk)}\n\n"
         

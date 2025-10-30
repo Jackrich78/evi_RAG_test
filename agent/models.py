@@ -29,9 +29,10 @@ class ChatRequest(BaseModel):
     message: str = Field(..., description="User message")
     session_id: Optional[str] = Field(None, description="Session ID for conversation continuity")
     user_id: Optional[str] = Field(None, description="User identifier")
+    language: Literal["nl", "en"] = Field(default="nl", description="Response language: 'nl' (Dutch) or 'en' (English)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     search_type: SearchType = Field(default=SearchType.HYBRID, description="Type of search to perform")
-    
+
     model_config = ConfigDict(use_enum_values=True)
 
 
@@ -434,3 +435,37 @@ class SpecialistAgentResponse(BaseModel):
     )
     session_id: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+# =============================================================================
+# FEAT-003 MVP Specialist Agent Models (Simplified)
+# =============================================================================
+
+class SpecialistDeps(BaseModel):
+    """
+    Dependencies for specialist agent.
+
+    Simplified for MVP - just session and user tracking.
+    """
+    session_id: str
+    user_id: str = Field(default="cli_user")
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class Citation(BaseModel):
+    """Citation model for specialist agent responses."""
+    title: str = Field(..., description="Guideline title")
+    source: str = Field(..., description="Source organization (NVAB, STECR, UWV, ARBO)")
+    quote: Optional[str] = Field(None, description="Relevant quote or summary")
+
+
+class SpecialistResponse(BaseModel):
+    """
+    Simplified specialist response for FEAT-003 MVP.
+
+    Dutch-language response with citations but no products/tiers.
+    """
+    content: str = Field(..., description="Main response in Dutch")
+    citations: List[Citation] = Field(default_factory=list, description="Minimum 2 citations")
+    search_metadata: Dict[str, Any] = Field(default_factory=dict, description="Search stats")

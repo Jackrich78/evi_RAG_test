@@ -15,16 +15,27 @@ os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/tes
 os.environ.setdefault("NEO4J_URI", "bolt://localhost:7687")
 os.environ.setdefault("NEO4J_USER", "neo4j")
 os.environ.setdefault("NEO4J_PASSWORD", "test_password")
-# Flexible provider configuration for tests
-os.environ.setdefault("LLM_PROVIDER", "openai")
-os.environ.setdefault("LLM_BASE_URL", "https://api.openai.com/v1")
-os.environ.setdefault("LLM_API_KEY", "sk-test-key-for-testing")
-os.environ.setdefault("LLM_CHOICE", "gpt-4-turbo-preview")
-os.environ.setdefault("EMBEDDING_PROVIDER", "openai")
-os.environ.setdefault("EMBEDDING_BASE_URL", "https://api.openai.com/v1")
-os.environ.setdefault("EMBEDDING_API_KEY", "sk-test-key-for-testing")
-os.environ.setdefault("EMBEDDING_MODEL", "text-embedding-3-small")
-os.environ.setdefault("INGESTION_LLM_CHOICE", "gpt-4o-mini")
+
+# Check if we should use real API (for integration testing)
+# Set PYTEST_USE_REAL_API=1 to use real OpenAI API
+USE_REAL_API = os.environ.get("PYTEST_USE_REAL_API") == "1"
+
+if USE_REAL_API:
+    # Load real API keys from .env for integration testing
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("\n⚠️  Using REAL OpenAI API (will cost money!)")
+    os.environ.setdefault("LLM_CHOICE", "gpt-4.1-mini-2025-04-14")
+else:
+    # Use mock/dummy keys for unit testing (fast, free)
+    print("\n✓ Using MOCKED API (free, fast unit tests)")
+    os.environ.setdefault("LLM_PROVIDER", "openai")
+    os.environ.setdefault("LLM_BASE_URL", "https://api.openai.com/v1")
+    os.environ.setdefault("LLM_API_KEY", "sk-test-mock-key")
+    os.environ.setdefault("LLM_CHOICE", "gpt-4o-mini")
+    os.environ.setdefault("EMBEDDING_PROVIDER", "openai")
+    os.environ.setdefault("EMBEDDING_API_KEY", "sk-test-mock-key")
+    os.environ.setdefault("EMBEDDING_MODEL", "text-embedding-3-small")
 
 
 @pytest.fixture(scope="session")

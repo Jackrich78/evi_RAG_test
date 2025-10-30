@@ -1,27 +1,16 @@
 # PRD: FEAT-007 - OpenWebUI Integration
 
 **Feature ID:** FEAT-007
-**Phase:** 7 (Web Interface) - **FUTURE FEATURE**
-**Status:** 📋 Planned (Post-MVP)
+**Phase:** 7 (Web Interface)
+**Status:** 🔍 Exploring (Research Complete)
 **Priority:** Medium
-**Owner:** TBD
-**Dependencies:** FEAT-003 (MVP Specialist Agent must be complete and validated)
+**Owner:** Claude Code
+**Dependencies:** FEAT-003 (MVP Specialist Agent - Complete ✅)
 **Created:** 2025-10-26
-**Last Updated:** 2025-10-26
+**Last Updated:** 2025-10-29
 
----
-
-## ⚠️ MVP Status: DESCOPED
-
-**This feature is NOT part of the MVP (FEAT-003).** The MVP uses CLI only for testing and validation.
-
-**Why Descoped:**
-- CLI is sufficient for MVP testing (technical users)
-- OpenWebUI adds complexity without improving core RAG quality
-- Web UI is important for end-users but not for proving retrieval accuracy
-- API architecture already supports future web integration
-
-**When to Implement:** After FEAT-003 MVP is validated (Dutch quality, citation accuracy, response time all meet criteria).
+**Related Documents:**
+- [Research Findings](research.md) - Comprehensive technical research (2025-10-29)
 
 ---
 
@@ -353,7 +342,9 @@ Test in OpenWebUI that citations render as blockquotes.
 
 ---
 
-**Last Updated:** 2025-10-26
-**Status:** 📋 Planned (Post-MVP)
-**Estimated Effort:** 5-8 hours (API endpoint + OpenWebUI setup + testing)
+**Last Updated:** 2025-10-29
+**Status:** 🔍 Exploring (Research Complete - Ready for Planning)
+**Estimated Effort:** 6-8 hours (reduced from initial estimate based on architectural decisions)
 **Risk Level:** Low (OpenWebUI is well-documented, API compatibility is straightforward)
+
+**Next Step:** Run `/plan FEAT-007` to create architecture.md, acceptance.md, testing.md

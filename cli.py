@@ -30,12 +30,19 @@ class Colors:
 
 class AgenticRAGCLI:
     """CLI for interacting with the Agentic RAG API."""
-    
-    def __init__(self, base_url: str = "http://localhost:8058"):
-        """Initialize CLI with base URL."""
+
+    def __init__(self, base_url: str = "http://localhost:8058", language: str = "en"):
+        """
+        Initialize CLI with base URL and language.
+
+        Args:
+            base_url: API base URL
+            language: Response language - "nl" (Dutch) or "en" (English), default "en"
+        """
         self.base_url = base_url.rstrip('/')
         self.session_id = None
         self.user_id = "cli_user"
+        self.language = language
         
     def print_banner(self):
         """Print welcome banner."""
@@ -92,29 +99,44 @@ class AgenticRAGCLI:
         """Format tools used for display."""
         if not tools:
             return f"{Colors.YELLOW}No tools used{Colors.END}"
-        
+
         formatted = f"{Colors.MAGENTA}{Colors.BOLD}🛠 Tools Used:{Colors.END}\n"
         for i, tool in enumerate(tools, 1):
             tool_name = tool.get('tool_name', 'unknown')
             args = tool.get('args', {})
-            
-            formatted += f"  {Colors.CYAN}{i}. {tool_name}{Colors.END}"
-            
-            # Show key arguments for context
-            if args:
-                key_args = []
-                if 'query' in args:
-                    key_args.append(f"query='{args['query'][:50]}{'...' if len(args['query']) > 50 else ''}'")
-                if 'limit' in args:
-                    key_args.append(f"limit={args['limit']}")
-                if 'entity_name' in args:
-                    key_args.append(f"entity='{args['entity_name']}'")
-                
-                if key_args:
-                    formatted += f" ({', '.join(key_args)})"
-            
-            formatted += "\n"
-        
+
+            # Special formatting for citations
+            if tool_name == 'citation':
+                title = args.get('title', 'Unknown')
+                source = args.get('source', 'Unknown')
+                quote = args.get('quote', '')
+
+                formatted += f"  {Colors.CYAN}{i}. Citation:{Colors.END}\n"
+                formatted += f"     {Colors.BOLD}Title:{Colors.END} {title}\n"
+                formatted += f"     {Colors.BOLD}Source:{Colors.END} {source}\n"
+                if quote:
+                    # Truncate long quotes
+                    quote_preview = quote[:100] + '...' if len(quote) > 100 else quote
+                    formatted += f"     {Colors.BOLD}Quote:{Colors.END} {quote_preview}\n"
+            else:
+                # Other tools (search, etc.)
+                formatted += f"  {Colors.CYAN}{i}. {tool_name}{Colors.END}"
+
+                # Show key arguments for context
+                if args:
+                    key_args = []
+                    if 'query' in args:
+                        key_args.append(f"query='{args['query'][:50]}{'...' if len(args['query']) > 50 else ''}'")
+                    if 'limit' in args:
+                        key_args.append(f"limit={args['limit']}")
+                    if 'entity_name' in args:
+                        key_args.append(f"entity='{args['entity_name']}'")
+
+                    if key_args:
+                        formatted += f" ({', '.join(key_args)})"
+
+                formatted += "\n"
+
         return formatted
     
     async def stream_chat(self, message: str) -> None:
@@ -123,6 +145,7 @@ class AgenticRAGCLI:
             "message": message,
             "session_id": self.session_id,
             "user_id": self.user_id,
+            "language": self.language,
             "search_type": "hybrid"
         }
         
@@ -261,7 +284,14 @@ def main():
         type=int,
         help='Port number (overrides URL port)'
     )
-    
+
+    parser.add_argument(
+        '--language', '-l',
+        choices=['nl', 'en'],
+        default='en',
+        help='Response language: nl (Dutch) or en (English), default: en'
+    )
+
     args = parser.parse_args()
     
     # Build base URL
@@ -276,8 +306,8 @@ def main():
             base_url = f"http://localhost:{args.port}"
     
     # Create and run CLI
-    cli = AgenticRAGCLI(base_url)
-    
+    cli = AgenticRAGCLI(base_url, language=args.language)
+
     try:
         asyncio.run(cli.run())
     except KeyboardInterrupt:

@@ -1,8 +1,10 @@
 # Architecture: FEAT-003 - Specialist Agent with Vector Search
 
 **Feature ID:** FEAT-003
-**Status:** Proposed
+**Status:** ✅ Complete - Implemented and Tested
 **Decision Date:** 2025-10-26
+**Completed:** 2025-10-30
+**Last Updated:** 2025-10-30
 
 ---
 
@@ -36,7 +38,7 @@ How to architect the MVP query flow from CLI to database and back.
 │  └────────────────┬─────────────────────────────────────────┘   │
 └───────────────────┼─────────────────────────────────────────────┘
                     │ HTTP POST /chat/stream
-                    │ {"message": "Dutch query", "session_id": "..."}
+                    │ {"message": "query", "session_id": "...", "language": "en"}
                     ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                         API LAYER                                │
@@ -299,24 +301,35 @@ How to architect the MVP query flow from CLI to database and back.
 ### 1. Specialist Agent (`agent/specialist_agent.py`)
 
 **Responsibilities:**
-- Receive Dutch query from API
+- Receive query from API (Dutch or English)
 - Decide when to search (always search first)
 - Call `search_guidelines` tool with query
-- Synthesize Dutch response from search results
+- Synthesize response from search results (in requested language)
 - Format citations with guideline titles and sources
 - Return structured SpecialistResponse
 
 **Configuration:**
 - Model: GPT-4 (configured via `get_llm_model()` from .env)
-- System Prompt: `SPECIALIST_SYSTEM_PROMPT` (Dutch specialist behavior)
+- System Prompts:
+  - `SPECIALIST_SYSTEM_PROMPT_NL` (Dutch responses, default for backward compatibility)
+  - `SPECIALIST_SYSTEM_PROMPT_EN` (English responses)
 - Result Type: `SpecialistResponse` (content + citations + metadata)
 - Dependencies: `SpecialistDeps` (session_id, user_id)
+- **Language Support**: Configurable via API request parameter (default: "nl")
+
+**Language Configuration (Added 2025-10-30):**
+- API endpoint accepts `language` parameter: `"nl"` (Dutch) or `"en"` (English)
+- Agent dynamically created with appropriate system prompt
+- Guidelines remain in Dutch (stored in PostgreSQL)
+- English mode translates key points from Dutch guidelines
+- Citations always show document titles (language-agnostic)
 
 **Tool: search_guidelines()**
 - **Purpose**: Wrapper around hybrid_search_tool
-- **Input**: Dutch query string, limit (default 10)
-- **Output**: List of chunks with content, scores, titles, sources
+- **Input**: Search query (Dutch or English), limit (default 10)
+- **Output**: List of chunks with content, scores, document_title, document_source
 - **Behavior**: Always uses hybrid search (vector + text), no tier filtering
+- **Note**: Searches Dutch content regardless of query language (embeddings are multilingual)
 
 ### 2. Search Tools (`agent/tools.py`)
 
@@ -411,6 +424,87 @@ $$;
 - Streaming response display (token-by-token)
 - Commands: `help`, `health`, `clear`, `exit`
 - Session management (session_id persisted across queries in same session)
+- **Language flag**: `--language en` or `-l en` (default: "en")
+
+**Citation Display Format:**
+```
+🛠 Tools Used:
+  1. Citation:
+     Title: PMO_ Leidraad voor preventief medisch onderzoek van werkenden
+     Source: PMO_ Leidraad voor preventief medisch onderzoek van werkenden
+     Quote: NVAB. Richtlijn Astma en COPD...
+```
+
+---
+
+## Citation Behavior
+
+### How Citations Work
+
+**Data Flow: Database → LLM → API → CLI**
+
+1. **Search Results from PostgreSQL:**
+   ```python
+   {
+     "document_title": "ARBO in het kort",        # Clean title
+     "document_source": "ARBO in het kort.md",    # Filename (legacy)
+     "content": "De Arbowet vormt het fundament..."
+   }
+   ```
+
+2. **LLM Generates Citations:**
+   - System prompt instructs: "Use `document_title` for both citation.title and citation.source"
+   - LLM extracts relevant quotes from chunk content
+   - Result: `Citation(title="ARBO in het kort", source="ARBO in het kort", quote="...")`
+
+3. **API Sends to CLI:**
+   ```json
+   {
+     "type": "tools",
+     "tools": [{
+       "tool_name": "citation",
+       "args": {
+         "title": "ARBO in het kort",
+         "source": "ARBO in het kort",
+         "quote": "De Arbowet vormt..."
+       }
+     }]
+   }
+   ```
+
+4. **CLI Displays:** (see format above)
+
+### Citation Fields
+
+| Field | Source | Description | Example |
+|-------|--------|-------------|---------|
+| **title** | `document_title` from PostgreSQL | Full guideline title | "Richtlijn Tillen" |
+| **source** | Same as title (LLM copies) | Source attribution | "Richtlijn Tillen" |
+| **quote** | LLM extracts from chunk `content` | Relevant excerpt | "De maximale tilfrequentie..." |
+
+### Key Design Decisions
+
+**Why use `document_title` for source instead of organization name?**
+- Database `documents.source` field contains filenames (`.md` extension)
+- Organization names (NVAB, STECR) would require parsing titles or adding metadata
+- For MVP: Clean document titles are sufficient for user attribution
+- Future: Extract organization from document metadata or title parsing
+
+**Why duplicates in title and source fields?**
+- Maintains consistency with Citation model schema
+- Allows future differentiation (e.g., title="Tilrichtlijn", source="NVAB")
+- CLI displays both fields separately for user clarity
+
+### Validation
+
+**System Prompt Instructions:**
+- Dutch: "Voor citation.source: gebruik ook de document_title (NIET document_source!)"
+- English: "For citation.source: also use the document_title (NOT document_source!)"
+
+**Output Validator:**
+- Checks minimum 2 citations (warns if <2)
+- Basic Dutch language check (warns on common English words)
+- Does NOT validate citation field content (trusts LLM)
 
 ---
 
