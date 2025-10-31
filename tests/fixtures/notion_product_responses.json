@@ -1,0 +1,291 @@
+{
+  "complete_product": {
+    "object": "page",
+    "id": "notion-page-complete-001",
+    "created_time": "2025-10-31T10:00:00.000Z",
+    "last_edited_time": "2025-10-31T10:00:00.000Z",
+    "properties": {
+      "Name": {
+        "title": [
+          {
+            "text": {
+              "content": "Safety Helmet EN 397"
+            }
+          }
+        ]
+      },
+      "Description": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Veiligheidshelm voor bouwplaatsen en industrieel werk. Beschermt tegen vallende voorwerpen en hoofd impact."
+            }
+          }
+        ]
+      },
+      "Category": {
+        "select": {
+          "name": "Head Protection"
+        }
+      },
+      "Supplier": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "SafetyPro Europe B.V."
+            }
+          }
+        ]
+      },
+      "Compliance Tags": {
+        "multi_select": [
+          {
+            "name": "CE"
+          },
+          {
+            "name": "EN 397"
+          }
+        ]
+      },
+      "Use Cases": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Bouwplaatsen, industriële omgevingen, overhead werk, constructie"
+            }
+          }
+        ]
+      },
+      "Price Range": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "€25-€50"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "product_missing_optional": {
+    "object": "page",
+    "id": "notion-page-missing-optional-002",
+    "created_time": "2025-10-31T10:05:00.000Z",
+    "last_edited_time": "2025-10-31T10:05:00.000Z",
+    "properties": {
+      "Name": {
+        "title": [
+          {
+            "text": {
+              "content": "Gehoorbescherming Oorkappen"
+            }
+          }
+        ]
+      },
+      "Description": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Professionele oorkappen voor geluidsreductie in industriële omgevingen."
+            }
+          }
+        ]
+      },
+      "Category": {
+        "select": {
+          "name": "Hearing Protection"
+        }
+      },
+      "Supplier": {
+        "rich_text": []
+      },
+      "Compliance Tags": {
+        "multi_select": [
+          {
+            "name": "CE"
+          },
+          {
+            "name": "EN 352-1"
+          }
+        ]
+      },
+      "Use Cases": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Lawaai op bouwplaatsen, fabrieken, luchthavens"
+            }
+          }
+        ]
+      },
+      "Price Range": {
+        "rich_text": []
+      }
+    }
+  },
+  "product_missing_required": {
+    "object": "page",
+    "id": "notion-page-missing-required-003",
+    "created_time": "2025-10-31T10:10:00.000Z",
+    "last_edited_time": "2025-10-31T10:10:00.000Z",
+    "properties": {
+      "Name": {
+        "title": []
+      },
+      "Description": {
+        "rich_text": []
+      },
+      "Category": {
+        "select": {
+          "name": "Eye Protection"
+        }
+      },
+      "Compliance Tags": {
+        "multi_select": [
+          {
+            "name": "CE"
+          }
+        ]
+      }
+    }
+  },
+  "product_special_characters": {
+    "object": "page",
+    "id": "notion-page-special-chars-004",
+    "created_time": "2025-10-31T10:15:00.000Z",
+    "last_edited_time": "2025-10-31T10:15:00.000Z",
+    "properties": {
+      "Name": {
+        "title": [
+          {
+            "text": {
+              "content": "Safety Goggles™ - Model #42 (Anti-Fog)"
+            }
+          }
+        ]
+      },
+      "Description": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Veiligheidsbril met anti-condens coating® voor optimaal zicht. Beschermt tegen stof, vloeistoffen & chemicaliën."
+            }
+          }
+        ]
+      },
+      "Category": {
+        "select": {
+          "name": "Eye Protection"
+        }
+      },
+      "Supplier": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "3M™ Nederland"
+            }
+          }
+        ]
+      },
+      "Compliance Tags": {
+        "multi_select": [
+          {
+            "name": "CE"
+          },
+          {
+            "name": "EN 166"
+          }
+        ]
+      },
+      "Use Cases": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Laboratorium werk, chemische industrie, schoonmaak activiteiten"
+            }
+          }
+        ]
+      },
+      "Price Range": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "€15-€30"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "product_long_description": {
+    "object": "page",
+    "id": "notion-page-long-desc-005",
+    "created_time": "2025-10-31T10:20:00.000Z",
+    "last_edited_time": "2025-10-31T10:20:00.000Z",
+    "properties": {
+      "Name": {
+        "title": [
+          {
+            "text": {
+              "content": "Valbeveiliging Harnas Premium"
+            }
+          }
+        ]
+      },
+      "Description": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Premium valbeveiliging harnas met verstelbare schouderbanden, beenbanden en rugband. Ontworpen voor maximaal comfort en veiligheid bij werk op hoogte. Het harnas is voorzien van meerdere bevestigingspunten voor lanyards en veiligheidskabels. Gemaakt van duurzaam polyester weefsel met verstevigde stiknaden. Inclusief D-ring op de rug en borst voor veilige bevestiging. Geschikt voor gebruik in combinatie met valdempers en zelfinrollende lanyards. Volledig verstelbaar voor optimale pasvorm. Voldoet aan alle Europese veiligheidsnormen. Regelmatig inspecteren volgens fabrieksrichtlijnen aanbevolen. Maximale gebruikersmassa 140kg. Verkrijgbaar in verschillende maten (S, M, L, XL). Kleur: hi-vis oranje met reflecterende strips voor betere zichtbaarheid. Geschikt voor bouw, industrieel onderhoud, windenergie, telecom installaties en ander werk op hoogte. Minimale vallengte: 1 meter. Aanbevolen voor dagelijks professioneel gebruik. Levering inclusief opbergtas en gebruiksaanwijzing in Nederlands, Engels en Frans. Levensduur bij normaal gebruik: 5 jaar vanaf productiedatum."
+            }
+          }
+        ]
+      },
+      "Category": {
+        "select": {
+          "name": "Fall Protection"
+        }
+      },
+      "Supplier": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Height Safety Solutions"
+            }
+          }
+        ]
+      },
+      "Compliance Tags": {
+        "multi_select": [
+          {
+            "name": "CE"
+          },
+          {
+            "name": "EN 361"
+          },
+          {
+            "name": "EN 358"
+          }
+        ]
+      },
+      "Use Cases": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "Werk op hoogte, bouwplaatsen, windturbine onderhoud, telecom masten, industrieel klimwerk"
+            }
+          }
+        ]
+      },
+      "Price Range": {
+        "rich_text": [
+          {
+            "text": {
+              "content": "€150-€250"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

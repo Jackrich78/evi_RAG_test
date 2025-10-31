@@ -1,6 +1,6 @@
 # Documentation Index
 
-*Last updated: 2025-10-31 (Updated: FEAT-010 exploration complete)*
+*Last updated: 2025-10-31 (Updated: FEAT-010 planning complete)*
 
 ## Features
 
@@ -142,16 +142,29 @@
 ---
 
 #### [FEAT-010: True Token Streaming](features/FEAT-010_streaming/)
-**Status:** 🚀 Ready for Planning (Exploration Complete)
+**Status:** ✅ Ready for Implementation
 **Created:** 2025-10-31
 **Explored:** 2025-10-31
+**Planned:** 2025-10-31
 **Phase:** 1 (Performance Enhancement)
 **Documents:**
 - [Product Requirements](features/FEAT-010_streaming/prd.md) (780 words)
 - [Research Findings](features/FEAT-010_streaming/research.md) (850+ words)
+- [Architecture Decision](features/FEAT-010_streaming/architecture.md) (3,200+ words)
+- [Acceptance Criteria](features/FEAT-010_streaming/acceptance.md) (2,100+ words)
+- [Testing Strategy](features/FEAT-010_streaming/testing.md) (2,400+ words)
+- [Manual Test Guide](features/FEAT-010_streaming/manual-test.md) (1,800+ words)
 - [Historical Reference](features/FEAT-010_streaming/learnings.md) (Working implementation)
 
-**Summary:** Replace simulated streaming (blocks 2-3s, then chunks with fake delays) with true token-by-token streaming using Pydantic AI 0.3.2. Target <500ms first token, smooth character-level streaming. Based on proven blueprint from learnings.md. Estimated 3 hours implementation. Ready for `/plan FEAT-010`.
+**Test Stubs:** 44 test functions in 6 files
+- `tests/unit/streaming/test_sse_formatting.py` (7 tests)
+- `tests/unit/streaming/test_stream_handlers.py` (7 tests)
+- `tests/integration/streaming/test_sse_endpoint.py` (10 tests)
+- `tests/integration/streaming/test_pydantic_streaming.py` (5 tests)
+- `tests/e2e/streaming/test_streaming_workflow.py` (8 tests)
+- `tests/performance/streaming/test_streaming_performance.py` (7 tests)
+
+**Summary:** Replace simulated streaming with true token-by-token streaming using Pydantic AI 0.3.2. Architecture based on SSE protocol with spike validation approach. 11 acceptance criteria defined. Estimated 3 hours implementation following TDD. All planning documentation complete - ready for Phase 2 implementation.
 
 ---
 
@@ -168,7 +181,7 @@
 | FEAT-007 | OpenWebUI Integration | 7 | Ready | 6/6 | 4 |
 | FEAT-008 | Advanced Memory | 8 | Exploring | 1/6 | 0 |
 | FEAT-009 | Tier-Aware Search | 9 | Exploring | 1/6 | 0 |
-| FEAT-010 | True Token Streaming | 1 | Exploring | 2/6 | 0 |
+| FEAT-010 | True Token Streaming | 1 | Ready | 6/6 | 44 |
 
 **Status Legend:**
 - **Complete:** Implementation finished and deployed
@@ -253,12 +266,22 @@ Template files provide standardized structure for:
 
 **Total Features:** 10
 - Complete: 3
-- Ready for Implementation: 2
-- Exploring: 5
+- Ready for Implementation: 3
+- Exploring: 4
 
-**Total Planning Documents:** 18
+**Total Planning Documents:** 22
 - PRDs: 10
 - Research: 3
+- Architecture: 3
+- Acceptance: 3
+- Testing: 3
+- Manual Test: 3
+
+**Total Test Stubs:** 70
+- Unit: 30
+- Integration: 21
+- E2E: 12
+- Performance: 7
 - Architecture: 2
 - Acceptance: 2
 - Testing: 2

@@ -159,4 +159,62 @@ This file tracks all acceptance criteria across all features in the project. Eac
 
 ---
 
-**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) = 72
+## FEAT-010: True Token Streaming
+
+### Functional Requirements
+
+#### User Story 1: Real-time Token Display
+
+- **AC-FEAT-010-001:** Given a user submits a query to the specialist agent, when the LLM begins generating a response, then the first token must appear in the UI within 500ms
+- **AC-FEAT-010-002:** Given the LLM is generating a response, when tokens are being produced, then tokens must appear continuously without buffering delays between chunks
+- **AC-FEAT-010-003:** Given a streaming response is in progress, when the user views the chat interface, then a visual indicator (cursor/animation) must show that streaming is active
+
+#### User Story 2: Citation Integration
+
+- **AC-FEAT-010-004:** Given the LLM response includes citation markers `[1]`, `[2]`, etc., when tokens stream to the frontend, then citation markers must render correctly without breaking across chunk boundaries
+- **AC-FEAT-010-005:** Given a citation marker appears in the streaming text, when the marker is rendered, then the citation panel must update in real-time to show the referenced source
+- **AC-FEAT-010-006:** Given the streaming response is complete, when the user clicks a citation marker, then the citation panel must scroll to and highlight the correct source
+
+#### User Story 3: Bilingual Support
+
+- **AC-FEAT-010-007:** Given the user asks a question in Dutch, when the agent responds in Dutch, then tokens must stream correctly with proper UTF-8 encoding for Dutch characters (ë, ö, etc.)
+- **AC-FEAT-010-008:** Given the user asks a question in English, when the agent responds in English, then tokens must stream correctly with same performance as Dutch responses
+
+#### User Story 4: Error Handling
+
+- **AC-FEAT-010-009:** Given a streaming response is in progress, when the network connection is interrupted, then the UI must display an error message and allow retry without losing accumulated text
+- **AC-FEAT-010-010:** Given the LLM takes longer than 60 seconds to complete, when the timeout threshold is reached, then the stream must close gracefully with a timeout error message
+- **AC-FEAT-010-011:** Given the backend encounters an error during streaming, when the error occurs, then the frontend must receive an error event and display a user-friendly message
+
+### Non-Functional Requirements
+
+#### Performance
+
+- **AC-FEAT-010-012:** Given a typical query (50-100 tokens), when measured across 100 requests, then 95th percentile time-to-first-token must be under 500ms
+- **AC-FEAT-010-013:** Given a query that generates 2000+ tokens, when streaming the response, then the stream must remain stable without stuttering or freezing
+- **AC-FEAT-010-014:** Given 10 users simultaneously streaming queries, when all streams are active, then each stream must maintain <500ms first-token latency and smooth delivery
+
+#### Reliability
+
+- **AC-FEAT-010-015:** Given 50 consecutive streaming queries, when all queries complete, then no memory leaks must be detectable (backend or frontend)
+- **AC-FEAT-010-016:** Given a user navigates away during streaming, when the browser closes the connection, then the backend must detect disconnection and clean up resources within 5 seconds
+
+#### Security
+
+- **AC-FEAT-010-017:** Given an unauthenticated user attempts to access the streaming endpoint, when the connection is attempted, then the request must be rejected with 401 Unauthorized
+- **AC-FEAT-010-018:** Given a user makes more than 20 streaming requests in 1 minute, when the rate limit is exceeded, then subsequent requests must be rejected with 429 Too Many Requests
+
+#### Compatibility
+
+- **AC-FEAT-010-019:** Given the supported browsers (Chrome, Firefox, Safari, Edge), when accessing the streaming interface, then streaming must work consistently across all supported browsers
+- **AC-FEAT-010-020:** Given a user accesses the system on a mobile device, when streaming a response, then the streaming UI must be responsive and performant on mobile networks
+
+### Edge Cases
+
+- **AC-FEAT-010-021:** Given the LLM generates an empty response, when the stream completes, then the UI must display a message indicating no content was generated
+- **AC-FEAT-010-022:** Given a user submits a new query before the previous stream completes, when the new query is submitted, then the previous stream must be cancelled and the new stream must start immediately
+- **AC-FEAT-010-023:** Given a response contains special characters (emoji, mathematical symbols, etc.), when streaming the response, then all special characters must render correctly without encoding issues
+
+---
+
+**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) + 23 (FEAT-010) = 95
