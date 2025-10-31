@@ -19,7 +19,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 from .agent import rag_agent, AgentDependencies
-from .specialist_agent import run_specialist_query
+from .specialist_agent import run_specialist_query, run_specialist_query_stream
 from .db_utils import (
     initialize_database,
     close_database,
@@ -433,23 +433,37 @@ async def chat_stream(request: ChatRequest):
                     metadata={"user_id": request.user_id}
                 )
 
-                # 3. Use specialist agent to generate response with citations
-                response = await run_specialist_query(
+                # 3. FEAT-010: True token-by-token streaming
+                from .streaming_utils import format_sse_text
+
+                # Accumulate full content for saving later
+                full_content = []
+                final_response = None
+
+                # Stream tokens as they arrive (no artificial delays!)
+                async for item in run_specialist_query_stream(
                     query=request.message,
                     session_id=session_id,
                     user_id=request.user_id or "cli_user",
                     language=request.language
-                )
+                ):
+                    # Handle tuple: ("text", delta) or ("final", response)
+                    item_type, data = item
 
-                # 4. Simulate streaming by chunking content (gives typing effect)
-                CHUNK_SIZE = 20  # Characters per chunk
-                for i in range(0, len(response.content), CHUNK_SIZE):
-                    chunk = response.content[i:i+CHUNK_SIZE]
-                    yield f"data: {json.dumps({'type': 'text', 'content': chunk})}\n\n"
-                    await asyncio.sleep(0.01)  # Small delay for typing effect
+                    if item_type == "text":
+                        # Send token immediately via SSE
+                        yield format_sse_text(data)
+                        # Accumulate for saving
+                        full_content.append(data)
+                    elif item_type == "final":
+                        # Capture final response with citations (no duplicate agent run!)
+                        final_response = data
 
-                # 5. Send citations as "tools" event (CLI already displays these nicely)
-                if response.citations:
+                # Reconstruct full response text
+                complete_content = "".join(full_content)
+
+                # 4. Send citations as "tools" event (CLI already displays these nicely)
+                if final_response.citations:
                     citations_as_tools = [
                         {
                             "tool_name": "citation",
@@ -459,7 +473,7 @@ async def chat_stream(request: ChatRequest):
                                 "quote": citation.quote or ""
                             }
                         }
-                        for citation in response.citations
+                        for citation in final_response.citations
                     ]
                     # Debug: Log what citations we're sending
                     logger.info(f"Sending {len(citations_as_tools)} citations:")
@@ -467,15 +481,15 @@ async def chat_stream(request: ChatRequest):
                         logger.info(f"  Citation {idx}: title='{cit['args']['title']}', source='{cit['args']['source']}'")
                     yield f"data: {json.dumps({'type': 'tools', 'tools': citations_as_tools})}\n\n"
 
-                # 6. Save assistant response with metadata
+                # 5. Save assistant response with metadata
                 await add_message(
                     session_id=session_id,
                     role="assistant",
-                    content=response.content,
+                    content=complete_content,  # Use streamed content
                     metadata={
                         "streamed": True,
-                        "citations": len(response.citations),
-                        "search_metadata": response.search_metadata
+                        "citations": len(final_response.citations),
+                        "search_metadata": final_response.search_metadata
                     }
                 )
 

@@ -456,7 +456,7 @@ class SpecialistDeps(BaseModel):
 class Citation(BaseModel):
     """Citation model for specialist agent responses."""
     title: str = Field(..., description="Guideline title")
-    source: str = Field(..., description="Source organization (NVAB, STECR, UWV, ARBO)")
+    source: str = Field(default="Unknown", description="Source organization (NVAB, STECR, UWV, ARBO)")
     quote: Optional[str] = Field(None, description="Relevant quote or summary")
 
 
@@ -465,7 +465,10 @@ class SpecialistResponse(BaseModel):
     Simplified specialist response for FEAT-003 MVP.
 
     Dutch-language response with citations but no products/tiers.
+
+    FEAT-010: Fields have defaults to support streaming partial validation.
+    OpenAI sends incremental JSON: {} → {"content": ""} → {"content": "A"} → ...
     """
-    content: str = Field(..., description="Main response in Dutch")
+    content: str = Field(default="", description="Main response in Dutch")
     citations: List[Citation] = Field(default_factory=list, description="Minimum 2 citations")
     search_metadata: Dict[str, Any] = Field(default_factory=dict, description="Search stats")

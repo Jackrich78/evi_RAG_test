@@ -297,3 +297,115 @@ async def run_specialist_query(
         pass
 
     return response
+
+
+async def run_specialist_query_stream(
+    query: str,
+    session_id: Optional[str] = None,
+    user_id: str = "cli_user",
+    language: str = "nl"
+):
+    """
+    Stream specialist agent response token-by-token (FEAT-010).
+
+    Uses Pydantic AI 0.3.2's .stream_structured() for true streaming.
+    Yields text deltas during generation, then yields final response with citations.
+
+    Args:
+        query: Safety question (in Dutch or English)
+        session_id: Optional session ID (generates UUID if None)
+        user_id: User identifier (default: "cli_user")
+        language: Response language - "nl" (Dutch) or "en" (English), default "nl"
+
+    Yields:
+        tuple[str, str | SpecialistResponse]:
+            - ("text", delta): Text deltas during streaming
+            - ("final", response): Complete SpecialistResponse with citations at end
+
+    Example:
+        >>> async for item_type, data in run_specialist_query_stream("Wat zijn de eisen voor werken op hoogte?"):
+        ...     if item_type == "text":
+        ...         print(data, end="", flush=True)
+        ...     elif item_type == "final":
+        ...         print(f"\nCitations: {len(data.citations)}")
+    """
+    from .streaming_utils import StreamHandler
+
+    # Generate session ID if not provided
+    if not session_id:
+        session_id = str(uuid.uuid4())
+
+    # Create dependencies
+    deps = SpecialistDeps(
+        session_id=session_id,
+        user_id=user_id
+    )
+
+    # Create agent with appropriate language
+    agent = _create_specialist_agent(language)
+
+    # Register the search_guidelines tool on this agent instance
+    @agent.tool
+    async def search_guidelines_local(
+        ctx: RunContext[SpecialistDeps],
+        query: str,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Search Dutch workplace safety guidelines."""
+        return await search_guidelines(ctx, query, limit)
+
+    # Register LENIENT output validator for streaming
+    @agent.output_validator
+    async def validate_response_stream(
+        ctx: RunContext[SpecialistDeps],
+        response: SpecialistResponse
+    ) -> SpecialistResponse:
+        """
+        Lenient validation for streaming partials.
+
+        OpenAI sends partial JSON: {} → {"content": ""} → {"content": "A"} → ...
+        Only validate final response strictly.
+        """
+        # Detect partial response: has content but no citations yet
+        is_partial = len(response.content) > 0 and len(response.citations) == 0
+
+        if is_partial:
+            # Allow partials through without strict validation
+            return response
+        else:
+            # Final response: apply strict validation
+            return await validate_dutch_response(ctx, response)
+
+    # Initialize stream handler for delta tracking
+    handler = StreamHandler()
+
+    try:
+        # Use run_stream() for structured output streaming
+        async with agent.run_stream(query, deps=deps) as result:
+            # Pydantic AI 0.3.2: stream_structured() yields (ModelResponse, is_last) tuples
+            async for message, is_last in result.stream_structured():
+                # Validate with partial support (allows incomplete citations during streaming)
+                validated = await result.validate_structured_output(message, allow_partial=True)
+
+                # Extract content from validated partial response
+                if hasattr(validated, 'content') and isinstance(validated.content, str):
+                    # Calculate delta (only NEW text)
+                    delta = handler.process_chunk(validated.content)
+
+                    if delta:
+                        # Yield text delta for real-time streaming
+                        yield ("text", delta)
+
+            # After streaming completes, get final response with citations
+            final_response = await result.get_output()
+
+            # Add search metadata if not present
+            if not final_response.search_metadata:
+                final_response.search_metadata = {}
+
+            # Yield final response with citations (eliminates need for duplicate agent run)
+            yield ("final", final_response)
+
+    finally:
+        # Clean up resources
+        handler.cleanup()

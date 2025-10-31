@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-01]
+
+### Fixed
+- **FEAT-010 Streaming:** Fixed missing `await` on `result.get_output()` in specialist_agent.py line 400 causing streaming to fail partway through ([docs/features/FEAT-010_streaming/implementation.md](docs/features/FEAT-010_streaming/implementation.md))
+- Updated test documentation with correct Pydantic AI 0.3.2 streaming API pattern in test_pydantic_streaming.py
+- Added comprehensive bug fix documentation including root cause analysis and lessons learned
+
 ### Added - FEAT-004 Planning Complete: Product Catalog Integration (2025-10-31)
 - **FEAT-004: Product Catalog Integration - Planning Documentation Complete**
   - **Status:** ✅ Ready for Implementation

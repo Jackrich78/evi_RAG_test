@@ -6,8 +6,12 @@ Validates end-to-end streaming behavior from API to client.
 """
 
 import pytest
+import time
+import asyncio
 from httpx import AsyncClient
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
+from agent.api import app
+from agent.models import ChatRequest
 
 
 class TestSSEEndpoint:
@@ -20,12 +24,35 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-002
         """
-        # TODO: Implement test
-        # 1. Create test client for FastAPI app
-        # 2. Send POST request to /api/v1/stream/query
-        # 3. Assert response headers contain "text/event-stream"
-        # 4. Verify streaming response starts immediately
-        pass
+        # Given: Test client and mock specialist agent
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                # Mock streaming response
+                async def mock_generator():
+                    yield "Hello"
+                    yield " world"
+
+                mock_stream.return_value = mock_generator()
+
+                # When: Sending POST request to streaming endpoint
+                request = ChatRequest(
+                    message="Test query",
+                    session_id="test-session",
+                    language="nl"
+                )
+
+                response = await client.post(
+                    "/api/v1/chat/stream",
+                    json=request.dict(),
+                    headers={"Authorization": "Bearer test-token"}
+                )
+
+                # Then: Response headers contain "text/event-stream"
+                assert response.status_code == 200
+                assert "text/event-stream" in response.headers.get("content-type", "")
+
+                # Verify streaming response starts immediately
+                assert response.is_stream_consumed is False
 
     @pytest.mark.asyncio
     async def test_first_token_latency_under_500ms(self):
@@ -34,12 +61,42 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-001, AC-FEAT-010-012
         """
-        # TODO: Implement test
-        # 1. Mock Pydantic AI agent with known response
-        # 2. Send query and start timer
-        # 3. Wait for first SSE event
-        # 4. Assert elapsed time < 500ms
-        pass
+        # Given: Test client with mock that yields immediately
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def mock_generator():
+                    yield "First token"
+                    await asyncio.sleep(0.1)
+                    yield " more content"
+
+                mock_stream.return_value = mock_generator()
+
+                request = ChatRequest(
+                    message="Quick test",
+                    session_id="test-session",
+                    language="nl"
+                )
+
+                # When: Sending request and measuring time to first token
+                start_time = time.time()
+                response = await client.post(
+                    "/api/v1/chat/stream",
+                    json=request.dict(),
+                    headers={"Authorization": "Bearer test-token"}
+                )
+
+                # Read first chunk
+                first_chunk = None
+                async for chunk in response.aiter_bytes():
+                    if chunk:
+                        first_chunk = chunk
+                        break
+
+                elapsed = (time.time() - start_time) * 1000  # Convert to ms
+
+                # Then: First token arrives within 500ms
+                assert elapsed < 500, f"First token took {elapsed}ms, expected <500ms"
+                assert first_chunk is not None
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_with_citations(self):
@@ -48,12 +105,38 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-004, AC-FEAT-010-005
         """
-        # TODO: Implement test
-        # 1. Mock agent response with citation markers
-        # 2. Stream response and collect events
-        # 3. Assert citation markers appear intact
-        # 4. Verify no broken markers across chunks
-        pass
+        # Given: Mock response with citation markers
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def mock_generator():
+                    yield "According to guidelines "
+                    yield "[1], workers must "
+                    yield "[2] wear helmets."
+
+                mock_stream.return_value = mock_generator()
+
+                request = ChatRequest(message="Test", session_id="test", language="nl")
+
+                # When: Streaming response
+                response = await client.post(
+                    "/api/v1/chat/stream",
+                    json=request.dict(),
+                    headers={"Authorization": "Bearer test-token"}
+                )
+
+                # Collect all chunks
+                chunks = []
+                async for chunk in response.aiter_text():
+                    chunks.append(chunk)
+
+                full_response = "".join(chunks)
+
+                # Then: Citation markers appear intact
+                assert "[1]" in full_response
+                assert "[2]" in full_response
+                # Verify markers aren't broken across boundaries
+                assert "[ 1]" not in full_response
+                assert "[1 ]" not in full_response
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_authentication_required(self):
@@ -62,11 +145,19 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-017
         """
-        # TODO: Implement test
-        # 1. Send request without auth token
-        # 2. Assert response is 401 Unauthorized
-        # 3. Verify no stream is started
-        pass
+        # Given: Test client without auth token
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            request = ChatRequest(message="Test", session_id="test", language="nl")
+
+            # When: Sending request without authorization header
+            response = await client.post(
+                "/api/v1/chat/stream",
+                json=request.dict()
+                # No Authorization header
+            )
+
+            # Then: Response is 401 Unauthorized
+            assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_rate_limiting(self):
@@ -75,11 +166,29 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-018
         """
-        # TODO: Implement test
-        # 1. Send 21 requests rapidly from same user
-        # 2. Assert 21st request returns 429 Too Many Requests
-        # 3. Verify rate limit window resets correctly
-        pass
+        # Given: Test client
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def mock_generator():
+                    yield "Response"
+
+                mock_stream.return_value = mock_generator()
+
+                request = ChatRequest(message="Test", session_id="test", language="nl")
+                headers = {"Authorization": "Bearer test-token"}
+
+                # When: Sending 21 requests rapidly
+                responses = []
+                for i in range(21):
+                    response = await client.post(
+                        "/api/v1/chat/stream",
+                        json=request.dict(),
+                        headers=headers
+                    )
+                    responses.append(response.status_code)
+
+                # Then: 21st request returns 429 Too Many Requests
+                assert 429 in responses, "Expected rate limiting after 20 requests"
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_handles_backend_errors(self):
@@ -88,12 +197,33 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-011
         """
-        # TODO: Implement test
-        # 1. Mock Pydantic AI agent to raise exception
-        # 2. Send query and collect SSE events
-        # 3. Assert error event is received
-        # 4. Verify error message is user-friendly
-        pass
+        # Given: Mock that raises exception
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def failing_generator():
+                    yield "Starting..."
+                    raise ValueError("Mock backend error")
+
+                mock_stream.return_value = failing_generator()
+
+                request = ChatRequest(message="Test", session_id="test", language="nl")
+
+                # When: Streaming with error
+                response = await client.post(
+                    "/api/v1/chat/stream",
+                    json=request.dict(),
+                    headers={"Authorization": "Bearer test-token"}
+                )
+
+                # Collect events
+                events = []
+                async for chunk in response.aiter_text():
+                    events.append(chunk)
+
+                full_text = "".join(events)
+
+                # Then: Error event is received
+                assert "event: error" in full_text or "error" in full_text.lower()
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_with_long_response(self):
@@ -102,12 +232,35 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-013
         """
-        # TODO: Implement test
-        # 1. Mock agent response with 2000+ tokens
-        # 2. Stream entire response
-        # 3. Assert all tokens received
-        # 4. Verify no timeouts or interruptions
-        pass
+        # Given: Mock with 2000+ character response
+        long_text = "A " * 1000  # 2000 characters
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def mock_generator():
+                    # Stream in small chunks
+                    for i in range(0, len(long_text), 50):
+                        yield long_text[i:i+50]
+
+                mock_stream.return_value = mock_generator()
+
+                request = ChatRequest(message="Test", session_id="test", language="nl")
+
+                # When: Streaming long response
+                response = await client.post(
+                    "/api/v1/chat/stream",
+                    json=request.dict(),
+                    headers={"Authorization": "Bearer test-token"}
+                )
+
+                # Collect all content
+                chunks = []
+                async for chunk in response.aiter_text():
+                    chunks.append(chunk)
+
+                full_response = "".join(chunks)
+
+                # Then: All tokens received without interruption
+                assert len(full_response) >= 2000
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_concurrent_requests(self):
@@ -116,12 +269,27 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-014
         """
-        # TODO: Implement test
-        # 1. Start 10 concurrent streaming requests
-        # 2. Assert all complete successfully
-        # 3. Verify each maintains <500ms first-token latency
-        # 4. Check for resource leaks
-        pass
+        # Given: Multiple concurrent requests
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def mock_generator():
+                    yield "Response"
+
+                mock_stream.return_value = mock_generator()
+
+                request = ChatRequest(message="Test", session_id="test", language="nl")
+                headers = {"Authorization": "Bearer test-token"}
+
+                # When: Sending 10 concurrent requests
+                tasks = [
+                    client.post("/api/v1/chat/stream", json=request.dict(), headers=headers)
+                    for _ in range(10)
+                ]
+
+                responses = await asyncio.gather(*tasks)
+
+                # Then: All complete successfully
+                assert all(r.status_code == 200 for r in responses)
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_dutch_language_support(self):
@@ -130,12 +298,35 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-007
         """
-        # TODO: Implement test
-        # 1. Mock Dutch response with special characters (ë, ö, etc.)
-        # 2. Stream response and collect events
-        # 3. Assert characters decoded correctly
-        # 4. Verify no encoding issues
-        pass
+        # Given: Dutch response with special characters
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def mock_generator():
+                    yield "Werknemers moeten "
+                    yield "veiligheidsmaatregelen "
+                    yield "naleven: ë, ö, ü"
+
+                mock_stream.return_value = mock_generator()
+
+                request = ChatRequest(message="Test", session_id="test", language="nl")
+
+                # When: Streaming Dutch response
+                response = await client.post(
+                    "/api/v1/chat/stream",
+                    json=request.dict(),
+                    headers={"Authorization": "Bearer test-token"}
+                )
+
+                # Collect content
+                chunks = []
+                async for chunk in response.aiter_text():
+                    chunks.append(chunk)
+
+                full_text = "".join(chunks)
+
+                # Then: Dutch characters decoded correctly
+                assert "ë" in full_text or "\\u00eb" in full_text
+                assert "ö" in full_text or "\\u00f6" in full_text
 
     @pytest.mark.asyncio
     async def test_sse_endpoint_english_language_support(self):
@@ -144,9 +335,34 @@ class TestSSEEndpoint:
 
         Acceptance Criteria: AC-FEAT-010-008
         """
-        # TODO: Implement test
-        # 1. Mock English response
-        # 2. Stream response
-        # 3. Assert performance matches Dutch responses
-        # 4. Verify no language-specific issues
-        pass
+        # Given: English response
+        async with AsyncClient(app=app, base_url="http://test") as client:
+            with patch("agent.api.run_specialist_query_stream") as mock_stream:
+                async def mock_generator():
+                    yield "Workers must follow "
+                    yield "safety regulations."
+
+                mock_stream.return_value = mock_generator()
+
+                request = ChatRequest(message="Test", session_id="test", language="en")
+
+                # When: Streaming English response
+                start_time = time.time()
+                response = await client.post(
+                    "/api/v1/chat/stream",
+                    json=request.dict(),
+                    headers={"Authorization": "Bearer test-token"}
+                )
+
+                # Collect first chunk for timing
+                first_chunk = None
+                async for chunk in response.aiter_bytes():
+                    if chunk:
+                        first_chunk = chunk
+                        break
+
+                elapsed = (time.time() - start_time) * 1000
+
+                # Then: Performance matches Dutch (< 500ms)
+                assert elapsed < 500
+                assert first_chunk is not None
