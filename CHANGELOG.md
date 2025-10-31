@@ -7,6 +7,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - FEAT-010 Exploration Complete: True Token Streaming (2025-10-31)
+- **FEAT-010: True Token Streaming - Exploration Phase Complete**
+  - **Status:** 🚀 Ready for Planning
+  - **Exploration Completed:** 2025-10-31
+  - **Estimated Implementation:** 3 hours (Phase 2)
+  - **Performance Target:** <500ms first token (vs current 2-3s block)
+
+  **Problem Solved:**
+  - Current simulated streaming blocks for 2-3s, then artificially chunks output with fake delays
+  - Poor user experience with no visual feedback during LLM processing
+
+  **Solution:**
+  - Re-implement true token-by-token streaming using Pydantic AI 0.3.2
+  - Based on proven blueprint from learnings.md (working implementation)
+  - Uses .stream_output() API (updated from deprecated .stream())
+
+  **Architecture Decisions:**
+  - ✅ Keep both functions: run_specialist_query() (blocking) + run_specialist_query_stream() (new)
+  - ✅ Maintains test stability (6 existing tests mock blocking behavior)
+  - ✅ Low maintenance burden (dual functions pattern)
+
+  **Key Implementation Tasks (6 files, ~3 hours):**
+  1. agent/models.py - Make Citation.source and SpecialistResponse.content optional for partials
+  2. agent/specialist_agent.py - Add run_specialist_query_stream() with delta tracking
+  3. agent/api.py - Replace simulated streaming in /chat/stream endpoint
+  4. tests/agent/test_streaming.py (NEW) - 8 comprehensive streaming tests
+  5. tests/agent/test_specialist_agent.py (review) - Verify 6 existing tests still pass
+  6. tests/integration/test_specialist_flow.py - Implement test_streaming_response()
+
+  **Risk Assessment:** Low
+  - Proven blueprint from learnings.md with documented solutions
+  - Simple API migration (.stream() → .stream_output())
+  - Test isolation prevents regression
+
+  **Exploration Documents:**
+  - `docs/features/FEAT-010_streaming/prd.md` (780 words) - Problem, solution, requirements
+  - `docs/features/FEAT-010_streaming/research.md` (850+ words) - Pydantic AI API changes, architecture decisions
+  - `docs/features/FEAT-010_streaming/learnings.md` (existing) - Historical reference
+
+  **Next Steps:** Run `/plan FEAT-010` to create architecture.md, acceptance.md, testing.md, manual-test.md
+
+---
+
+### Added - FEAT-004 Exploration Complete: Product Catalog Integration (2025-10-31)
+- **FEAT-004: Product Catalog Integration - Exploration Phase Complete (Deep Dive)**
+  - **Status:** 🚀 Ready for Planning
+  - **Exploration Completed:** 2025-10-31 (Updated with deeper analysis)
+  - **Approach:** Phased MVP (8-12 hours) with pilot testing for retrieval quality validation
+  - **Data Source:** Notion products database (ID: 29dedda2a9a081409224e46bd48c5bc6)
+  - **Storage:** Dedicated products table (NOT chunks table)
+  - **Categorization:** Extract from Notion "type" field (no AI needed)
+  - **Integration:** Automatic when contextually relevant (agent decides based on semantic similarity)
+
+  **Key Decisions Made:**
+  - ✅ Use Notion database over web scraping (3x faster)
+  - ✅ Store in products table for clean separation
+  - ✅ Create dedicated `ingest_products.py` (don't reuse guidelines ingestion)
+  - ✅ Pilot test with 10-20 products BEFORE full ingestion (de-risk approach)
+  - ✅ Descope compliance tags for MVP
+  - ✅ Confirmed database fields: id, name, type, tags, visible, URL, price_type
+
+  **Critical Uncertainties Documented (7 categories):**
+  1. Notion database schema details (field formats, data quality, filtering)
+  2. Retrieval quality & search strategy (embedding options, similarity thresholds)
+  3. Agent integration logic (contextual relevance decision algorithm)
+  4. Data validation & error handling rules
+  5. Implementation sequencing & risk mitigation
+
+  **Phased Implementation Plan:**
+  - **Phase 0 (30 min):** Database inspection & schema analysis
+  - **Phase 1 (2-3 hours):** Pilot test with 10-20 products + 3 embedding strategies
+  - **Phase 2 (1-2 hours):** Full ingestion (conditional on pilot success)
+  - **Phase 3 (2-3 hours):** Agent tool integration
+  - **Phase 4 (1-2 hours):** Testing & validation
+
+  **Exploration Documents Updated:**
+  - `docs/features/FEAT-004_product-catalog/prd.md` (7.3K → 15K) - Added open questions, phased plan
+  - `docs/features/FEAT-004_product-catalog/research.md` (12.5K → 18K) - Added 5 uncertainty categories
+
+  **Next Steps:** Run `/plan FEAT-004` to create detailed planning documentation (architecture, acceptance criteria, testing strategy)
+
+---
+
 ### Added - FEAT-007 Planning Complete: OpenWebUI Integration (2025-10-30)
 - **FEAT-007: OpenWebUI Integration - Planning Documentation Complete**
   - **Status:** ✅ Ready for Implementation

@@ -1,6 +1,6 @@
 # Documentation Index
 
-*Last updated: 2025-10-30 (Updated: FEAT-003 complete)*
+*Last updated: 2025-10-31 (Updated: FEAT-010 exploration complete)*
 
 ## Features
 
@@ -63,13 +63,19 @@
 ---
 
 #### [FEAT-004: Product Catalog Integration](features/FEAT-004_product-catalog/)
-**Status:** Exploring
+**Status:** 🚀 Ready for Planning (Deep Exploration Complete)
 **Created:** 2025-10-25
+**Explored:** 2025-10-31 (Updated with deeper analysis)
 **Phase:** 4 (Product Catalog)
 **Documents:**
-- [Product Requirements](features/FEAT-004_product-catalog/prd.md)
+- [Product Requirements](features/FEAT-004_product-catalog/prd.md) (15K - Comprehensive with 7 open question categories)
+- [Research Findings](features/FEAT-004_product-catalog/research.md) (18K - Deep dive with uncertainty analysis)
 
-**Summary:** EVI 360 product catalog with compliance tags, smart recommendations based on guideline queries, and tiered product-to-guideline mapping.
+**Approach:** Phased MVP (8-12 hours) with pilot testing phase
+
+**Key Insight:** Pilot test with 10-20 products to validate retrieval quality BEFORE full ingestion. Critical risk mitigation for user concern: "I do wonder how well retrieving them will work."
+
+**Summary:** Ingest ~100 EVI 360 products from Notion database using dedicated ingestion script. Test 3 embedding strategies in pilot phase. Enable automatic contextually relevant product recommendations (agent decides). 7 categories of open questions documented for resolution during implementation. Ready for `/plan FEAT-004`.
 
 ---
 
@@ -135,6 +141,20 @@
 
 ---
 
+#### [FEAT-010: True Token Streaming](features/FEAT-010_streaming/)
+**Status:** 🚀 Ready for Planning (Exploration Complete)
+**Created:** 2025-10-31
+**Explored:** 2025-10-31
+**Phase:** 1 (Performance Enhancement)
+**Documents:**
+- [Product Requirements](features/FEAT-010_streaming/prd.md) (780 words)
+- [Research Findings](features/FEAT-010_streaming/research.md) (850+ words)
+- [Historical Reference](features/FEAT-010_streaming/learnings.md) (Working implementation)
+
+**Summary:** Replace simulated streaming (blocks 2-3s, then chunks with fake delays) with true token-by-token streaming using Pydantic AI 0.3.2. Target <500ms first token, smooth character-level streaming. Based on proven blueprint from learnings.md. Estimated 3 hours implementation. Ready for `/plan FEAT-010`.
+
+---
+
 ### Feature Summary
 
 | Feature ID | Name | Phase | Status | Planning Docs | Test Stubs |
@@ -148,6 +168,7 @@
 | FEAT-007 | OpenWebUI Integration | 7 | Ready | 6/6 | 4 |
 | FEAT-008 | Advanced Memory | 8 | Exploring | 1/6 | 0 |
 | FEAT-009 | Tier-Aware Search | 9 | Exploring | 1/6 | 0 |
+| FEAT-010 | True Token Streaming | 1 | Exploring | 2/6 | 0 |
 
 **Status Legend:**
 - **Complete:** Implementation finished and deployed
@@ -230,14 +251,14 @@ Template files provide standardized structure for:
 
 ## Documentation Statistics
 
-**Total Features:** 5
-- Complete: 2
-- Ready for Implementation: 1
-- Exploring: 2
+**Total Features:** 10
+- Complete: 3
+- Ready for Implementation: 2
+- Exploring: 5
 
-**Total Planning Documents:** 16
-- PRDs: 5
-- Research: 2
+**Total Planning Documents:** 18
+- PRDs: 10
+- Research: 3
 - Architecture: 2
 - Acceptance: 2
 - Testing: 2
