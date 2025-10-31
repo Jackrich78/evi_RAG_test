@@ -1,6 +1,6 @@
 # Documentation Index
 
-*Last updated: 2025-10-31 (Updated: FEAT-010 planning complete)*
+*Last updated: 2025-10-31 (Updated: FEAT-004 planning complete)*
 
 ## Features
 
@@ -63,19 +63,26 @@
 ---
 
 #### [FEAT-004: Product Catalog Integration](features/FEAT-004_product-catalog/)
-**Status:** 🚀 Ready for Planning (Deep Exploration Complete)
+**Status:** ✅ Ready for Implementation
 **Created:** 2025-10-25
-**Explored:** 2025-10-31 (Updated with deeper analysis)
+**Planning Complete:** 2025-10-31
 **Phase:** 4 (Product Catalog)
 **Documents:**
-- [Product Requirements](features/FEAT-004_product-catalog/prd.md) (15K - Comprehensive with 7 open question categories)
-- [Research Findings](features/FEAT-004_product-catalog/research.md) (18K - Deep dive with uncertainty analysis)
+- [Product Requirements](features/FEAT-004_product-catalog/prd.md)
+- [Research Findings](features/FEAT-004_product-catalog/research.md)
+- [Architecture Decision](features/FEAT-004_product-catalog/architecture.md) (794 words)
+- [Acceptance Criteria](features/FEAT-004_product-catalog/acceptance.md) (796 words - 34 criteria)
+- [Testing Strategy](features/FEAT-004_product-catalog/testing.md) (748 words)
+- [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md) (796 words)
 
-**Approach:** Phased MVP (8-12 hours) with pilot testing phase
+**Test Stubs:** 46 created in tests/
+- Unit: 32 tests (test_product_ingest.py, test_product_search.py, test_product_models.py)
+- Integration: 14 tests (test_product_ingestion_flow.py, test_product_search_flow.py)
 
-**Key Insight:** Pilot test with 10-20 products to validate retrieval quality BEFORE full ingestion. Critical risk mitigation for user concern: "I do wonder how well retrieving them will work."
+**Architecture:** Extend existing ingestion module (Option 1) - 2-3 days implementation
+**Key Features:** Notion ingestion, semantic search (<500ms), compliance filtering, product-guideline linking
 
-**Summary:** Ingest ~100 EVI 360 products from Notion database using dedicated ingestion script. Test 3 embedding strategies in pilot phase. Enable automatic contextually relevant product recommendations (agent decides). 7 categories of open questions documented for resolution during implementation. Ready for `/plan FEAT-004`.
+**Summary:** Comprehensive planning complete with 34 acceptance criteria and 46 test stubs. Extends proven FEAT-002 patterns for product catalog. Ready for TDD implementation in Phase 2.
 
 ---
 

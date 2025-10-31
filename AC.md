@@ -4,7 +4,7 @@ This file tracks all acceptance criteria across all features in the project. Eac
 
 **Purpose:** Global registry of acceptance criteria for traceability and testing alignment.
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-10-31
 
 ---
 
@@ -217,4 +217,69 @@ This file tracks all acceptance criteria across all features in the project. Eac
 
 ---
 
-**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) + 23 (FEAT-010) = 95
+## FEAT-004: Product Catalog Integration
+
+### Product Ingestion
+
+- **AC-FEAT-004-001:** Given a valid Notion database ID is configured for products, when the ingestion process runs, then all products are fetched from the Notion database with complete field data (name, description, category, supplier, compliance_tags, use_cases, price_range)
+- **AC-FEAT-004-002:** Given a product has been fetched from Notion with description and use_cases, when the embedding generation process runs, then a semantic embedding vector is created using text-embedding-3-small model and stored in the database
+- **AC-FEAT-004-003:** Given products are parsed with embeddings generated, when the storage process runs, then products are inserted into the `products` table with all fields properly mapped and no schema violations
+- **AC-FEAT-004-004:** Given a product with the same Notion page_id already exists in the database, when the ingestion process encounters the product, then the existing product record is updated (not duplicated) with the latest Notion data
+- **AC-FEAT-004-005:** Given an administrator has database access, when they execute the product ingestion command/function, then the ingestion process completes successfully and reports the number of products processed
+
+### Product Search
+
+- **AC-FEAT-004-006:** Given a natural language query in Dutch (e.g., "veiligheidshelm voor bouwplaats"), when the product search function is called, then relevant products are returned ranked by semantic similarity (cosine distance)
+- **AC-FEAT-004-007:** Given a product search query returns results, when the results are formatted, then each result includes name, description, category, supplier, and compliance_tags
+- **AC-FEAT-004-008:** Given a product database with 100+ products, when a semantic search query is executed for top 10 results, then the query completes in less than 500ms
+- **AC-FEAT-004-009:** Given a search query in Dutch (e.g., "gehoorbescherming"), when the search is performed, then relevant products with Dutch descriptions are returned correctly
+- **AC-FEAT-004-010:** Given a search query that matches no products, when the search is performed, then an empty list is returned without errors
+
+### Compliance Filtering
+
+- **AC-FEAT-004-011:** Given a user specifies a compliance tag filter (e.g., "CE"), when the product search is executed, then only products with the specified compliance tag are returned
+- **AC-FEAT-004-012:** Given a user specifies multiple compliance tags (e.g., ["CE", "EN 397"]), when the product search is executed, then only products matching all specified tags are returned (AND logic)
+- **AC-FEAT-004-013:** Given a natural language query and compliance filter(s), when the combined search is executed, then results are semantically relevant AND match compliance requirements
+- **AC-FEAT-004-014:** Given compliance tags are stored in various formats in Notion (e.g., "ce", "CE", " CE "), when products are ingested, then tags are normalized (uppercase, trimmed) for consistent filtering
+- **AC-FEAT-004-015:** Given a user specifies a non-existent compliance tag, when the filtered search is executed, then an empty result set is returned without errors
+
+### Product-Guideline Linking
+
+- **AC-FEAT-004-016:** Given a guideline exists with a category (e.g., "head protection"), when a product with matching category is ingested (e.g., "hard hats"), then the product is associated with the guideline for cross-referencing
+- **AC-FEAT-004-017:** Given a product has use_cases containing keywords (e.g., "construction sites"), when a guideline search matches those keywords, then the product appears in related products suggestions
+- **AC-FEAT-004-018:** Given a specialist queries guidelines about a topic (e.g., "hearing protection"), when the search includes product recommendations, then relevant products are returned as "Related Products" alongside guideline results
+- **AC-FEAT-004-019:** Given a product's category or use_cases are updated in Notion, when the product is re-ingested, then the product-guideline links are updated to reflect the new associations
+
+### Data Quality
+
+- **AC-FEAT-004-020:** Given the Notion product database contains N products, when ingestion completes, then 100% of products are successfully stored with embeddings (no data loss)
+- **AC-FEAT-004-021:** Given a product in Notion has missing optional fields (e.g., price_range, supplier), when the product is ingested, then the product is still stored with null values for missing fields and a warning is logged
+- **AC-FEAT-004-022:** Given a product in Notion is missing required fields (name or description), when the ingestion process encounters it, then the product is skipped, an error is logged, and ingestion continues for other products
+
+### Performance
+
+- **AC-FEAT-004-023:** Given a product catalog with 500+ products, when ingestion runs, then products are processed in batches (100 per batch) to avoid memory issues
+- **AC-FEAT-004-024:** Given a single product requires embedding generation, when the embedding API call is made, then the embedding is generated in less than 2 seconds per product
+- **AC-FEAT-004-025:** Given the products table has a pgvector index on embeddings, when a semantic search query is executed, then the database uses the index (verified via EXPLAIN query plan)
+
+### Security & Privacy
+
+- **AC-FEAT-004-026:** Given the Notion API key is required for ingestion, when the application starts, then the API key is loaded from environment variables (not hardcoded)
+- **AC-FEAT-004-027:** Given the ingestion process connects to PostgreSQL, when the connection is established, then SSL/TLS encryption is used for the connection
+
+### Error Handling
+
+- **AC-FEAT-004-028:** Given the Notion API returns an error (rate limit, network failure), when ingestion is in progress, then the error is logged, ingestion retries with exponential backoff, and fails gracefully after max retries
+- **AC-FEAT-004-029:** Given the database connection fails during ingestion, when a product is being stored, then the error is logged, transaction is rolled back, and ingestion can be re-run without data corruption
+- **AC-FEAT-004-030:** Given the embedding API returns an invalid response, when processing a product, then the product is skipped, an error is logged with details, and ingestion continues
+
+### Edge Cases
+
+- **AC-FEAT-004-031:** Given the Notion product database is empty, when ingestion runs, then the process completes successfully with "0 products processed" message
+- **AC-FEAT-004-032:** Given a product name contains special characters (e.g., "Safety Goggles™ - Model #42"), when the product is ingested, then special characters are preserved in the database
+- **AC-FEAT-004-033:** Given a product has a description exceeding 5000 characters, when the embedding is generated, then the description is truncated to the embedding model's token limit and a warning is logged
+- **AC-FEAT-004-034:** Given an ingestion process is already running, when a second ingestion is triggered, then the second process detects the lock and exits with a warning (no concurrent ingestion)
+
+---
+
+**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) + 23 (FEAT-010) + 34 (FEAT-004) = 129

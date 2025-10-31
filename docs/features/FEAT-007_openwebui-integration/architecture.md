@@ -24,6 +24,36 @@ EVI 360 RAG system currently provides API endpoints for retrieving workplace saf
 - API response time <2 seconds for guideline retrieval
 - Support for multiple concurrent users (10+ simultaneous sessions)
 
+---
+
+## Important: What is OpenWebUI?
+
+**OpenWebUI** is a **third-party open-source web application** (similar to ChatGPT's interface) that provides a production-ready chat UI for LLMs. It is:
+
+- **A separate application** - Runs as its own Docker container
+- **Not part of this project yet** - Will be added to `docker-compose.yml` during FEAT-007 implementation
+- **OpenAI-compatible** - Expects API endpoints in OpenAI's chat completions format (`/v1/chat/completions`)
+- **Feature-rich** - Handles conversation history, user management, markdown rendering, model selection
+
+**Why Add OpenWebUI?**
+- ✅ Production-ready chat interface without building from scratch
+- ✅ Built-in features: conversation history, user management, markdown rendering
+- ✅ Supports Dutch language naturally (via LLM, no special configuration)
+- ✅ Actively maintained open-source project with large community
+- ✅ Easy deployment via Docker
+
+**Why Not Build Custom UI?**
+- Would take 7-10 days vs 2-3 days for OpenWebUI integration
+- Would require ongoing UI maintenance and frontend expertise
+- OpenWebUI already solves all UI/UX needs for chat interfaces
+
+**Current State:** OpenWebUI is **NOT installed** in this project. It will be added as a new Docker service during implementation.
+
+**Existing Components:**
+- ✅ CLI tool ([cli.py](../../../cli.py)) - Uses `/chat/stream` endpoint, works perfectly
+- ✅ Specialist Agent ([specialist_agent.py](../../../agent/specialist_agent.py)) - `run_specialist_query()` function
+- ✅ FastAPI backend ([api.py](../../../agent/api.py)) - Running on port 8058
+
 ## Options Considered
 
 ### Option 1: OpenWebUI Standalone with API Integration
@@ -33,10 +63,19 @@ Deploy OpenWebUI as a separate Docker container that connects to our FastAPI bac
 
 **Architecture:**
 ```
-User → OpenWebUI (port 3000) → FastAPI Backend (port 8000) → PostgreSQL
-                ↓
-            OpenAI/Anthropic API
+User (Browser)
+    ↓
+OpenWebUI Container (port 3000) ← NEW SERVICE (not in project yet)
+    ↓ HTTP POST /v1/chat/completions ← NEW ENDPOINT (OpenAI format)
+FastAPI Backend (port 8058)
+    ├─ /v1/chat/completions (NEW - for OpenWebUI only)
+    ├─ /chat/stream (EXISTING - CLI keeps using this)
+    └─ Both call → run_specialist_query() ← SHARED LOGIC
+                            ↓
+                    PostgreSQL + pgvector
 ```
+
+**Key Point:** Both endpoints (`/chat/stream` and `/v1/chat/completions`) call the same `run_specialist_query()` function from [specialist_agent.py](../../../agent/specialist_agent.py). The new endpoint is just a format adapter to translate between OpenAI's API format and our internal specialist agent.
 
 **Implementation Steps:**
 1. Deploy OpenWebUI container with custom configuration
@@ -187,6 +226,36 @@ User → Custom UI (port 3000) → FastAPI + Pydantic AI (port 8000) → Postgre
 - Implement API response caching to reduce latency
 - Monitor performance and optimize API calls if needed
 - Document API contracts clearly for future UI alternatives
+
+---
+
+## Endpoint Comparison
+
+Understanding the two API endpoints and their purposes:
+
+| Endpoint | Used By | Request Format | Response Format | Status | Purpose |
+|----------|---------|---------------|-----------------|--------|---------|
+| `/chat/stream` | CLI tool ([cli.py](../../../cli.py)) | Custom (ChatRequest) | SSE stream (custom) | ✅ **Exists** | Terminal-based chat interface |
+| `/v1/chat/completions` | OpenWebUI (web UI) | OpenAI format | OpenAI SSE/JSON | ⚠️ **To be added** | Web browser chat interface |
+
+**Key Points:**
+- **Same backend logic**: Both endpoints call `run_specialist_query()` from [specialist_agent.py](../../../agent/specialist_agent.py)
+- **Different clients**: CLI uses terminal, OpenWebUI uses web browser
+- **Format adapter**: `/v1/chat/completions` translates OpenAI format → specialist agent → OpenAI format
+- **No breaking changes**: Adding `/v1/chat/completions` does NOT affect existing `/chat/stream` endpoint
+- **Parallel operation**: Both endpoints will work simultaneously (CLI and web UI can coexist)
+
+**Example Flow Comparison:**
+
+```
+CLI Workflow (Existing):
+User types in terminal → cli.py → POST /chat/stream → run_specialist_query() → Dutch response
+
+OpenWebUI Workflow (New):
+User types in browser → OpenWebUI → POST /v1/chat/completions → run_specialist_query() → Dutch response
+```
+
+---
 
 ## Spike Plan
 

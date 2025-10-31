@@ -173,3 +173,74 @@ networks:
 # To restore volumes:
 #   docker run --rm -v evi_rag_test_postgres_data:/data -v $(pwd):/backup \
 #     ubuntu tar xzf /backup/postgres_backup.tar.gz -C /
+#
+# =============================================================================
+# Future Services (Not Yet Implemented)
+# =============================================================================
+#
+# OpenWebUI (FEAT-007) - Web-based chat interface for EVI 360 RAG system
+#
+# Status: PLANNING PHASE - NOT YET READY TO DEPLOY
+#
+# This service will be added after implementing the /v1/chat/completions endpoint
+# in agent/api.py. OpenWebUI is a third-party open-source web application that
+# provides a ChatGPT-like interface for our specialist agent.
+#
+# What is OpenWebUI?
+#   - Third-party web application (not part of this project yet)
+#   - Provides production-ready chat UI with conversation history
+#   - Expects OpenAI-compatible API format
+#   - Runs on port 3000 (web interface)
+#   - Connects to our FastAPI backend on port 8058
+#
+# Prerequisites before uncommenting:
+#   1. Implement /v1/chat/completions endpoint in agent/api.py
+#   2. Implement /v1/models endpoint in agent/api.py
+#   3. Test endpoints with curl/pytest
+#   4. Verify specialist agent returns proper OpenAI format
+#
+# Uncomment the service below after completing prerequisites:
+#
+# openwebui:
+#   image: ghcr.io/open-webui/open-webui:main
+#   container_name: evi_openwebui
+#   restart: unless-stopped
+#   ports:
+#     - "3000:8080"  # OpenWebUI web interface
+#   environment:
+#     # API Configuration - Points to our FastAPI backend
+#     - OPENAI_API_BASE_URL=http://host.docker.internal:8058/v1
+#     - OPENAI_API_KEY=not-needed  # Our API doesn't require auth yet
+#
+#     # UI Configuration
+#     - WEBUI_NAME=EVI 360 Specialist
+#     - DEFAULT_MODELS=evi-specialist
+#     - DEFAULT_LOCALE=nl  # Dutch language UI
+#
+#     # Authentication (disable for internal use, enable for production)
+#     - WEBUI_AUTH=false  # Set to 'true' in production
+#
+#     # Performance
+#     - ENABLE_RAG_WEB_SEARCH=false  # We use our own RAG
+#     - ENABLE_IMAGE_GENERATION=false
+#   volumes:
+#     # Persist OpenWebUI data (conversation history, user settings)
+#     - openwebui_data:/app/backend/data
+#   networks:
+#     - evi_rag_network
+#   depends_on:
+#     - postgres  # Wait for database to be ready
+#
+# Add this to the volumes section when enabling OpenWebUI:
+#
+# volumes:
+#   openwebui_data:
+#     driver: local
+#
+# Usage after enabling:
+#   docker-compose up -d openwebui
+#   Open http://localhost:3000 in browser
+#   Chat interface will call /v1/chat/completions on our FastAPI backend
+#
+# Note: The existing CLI tool (cli.py) will continue to work with /chat/stream
+#       Both endpoints can run simultaneously - they serve different clients.

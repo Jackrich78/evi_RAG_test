@@ -22,6 +22,22 @@ EVI 360 workplace safety specialists need a user-friendly web interface to inter
 
 ---
 
+> **📦 Important: OpenWebUI is a Separate Application**
+>
+> **OpenWebUI** is a **third-party open-source web application** (similar to ChatGPT's UI) that provides a chat interface for LLMs. It is:
+> - A separate Docker container that will be **added to this project** during implementation
+> - **NOT currently in `docker-compose.yml`** - we will add it in Phase 2
+> - Designed to communicate with any OpenAI-compatible API
+>
+> **Why Two API Endpoints?**
+> - `/chat/stream` (EXISTING) - Used by CLI tool ([cli.py](../../../cli.py)), keeps current custom format
+> - `/v1/chat/completions` (NEW) - OpenAI-compatible format ONLY for OpenWebUI
+> - **Both call the same** `run_specialist_query()` function internally - this is just a format adapter
+>
+> **Current State:** OpenWebUI is NOT installed. It will be deployed as a new Docker service during FEAT-007 implementation.
+
+---
+
 ## Goals
 
 1. **OpenAI-Compatible API**: Add `/v1/chat/completions` endpoint that maps to specialist agent
@@ -83,7 +99,7 @@ EVI 360 workplace safety specialists need a user-friendly web interface to inter
 - Support `stream: true` and `stream: false` modes
 
 **OpenWebUI Configuration:**
-- Deploy OpenWebUI via Docker Compose (add to existing `docker-compose.yml`)
+- **Add new Docker service**: Deploy OpenWebUI via Docker Compose (currently NOT in `docker-compose.yml`)
 - Configure to connect to API on `localhost:8058`
 - Set Dutch as default language
 - Customize branding (EVI 360 logo, colors)

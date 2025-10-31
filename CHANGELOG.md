@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - FEAT-004 Planning Complete: Product Catalog Integration (2025-10-31)
+- **FEAT-004: Product Catalog Integration - Planning Documentation Complete**
+  - **Status:** ✅ Ready for Implementation
+  - **Planning Completed:** 2025-10-31
+  - **Estimated Implementation:** 2-3 days (Phase 2)
+
+  **Planning Documents Created (4 files):**
+  - architecture.md (794 words) - Extend existing ingestion module
+  - acceptance.md (796 words) - 34 acceptance criteria
+  - testing.md (748 words) - 46 test stubs across unit and integration
+  - manual-test.md (796 words) - 7 manual test scenarios
+
+  **Test Stubs Generated (46 tests in 5 files):**
+  - Unit tests: 32 tests (product ingestion, search, models)
+  - Integration tests: 14 tests (full pipeline, search flow)
+
+  **Architecture Decision:**
+  - **Selected:** Option 1 - Extend existing ingestion module
+  - **Rationale:** Fastest path to MVP, proven FEAT-002 patterns, 2-3 days
+  - **Key Features:** Notion ingestion, semantic search (<500ms), compliance filtering
+
+  **Acceptance Criteria:** 34 new criteria added to AC.md (global total: 129)
+
+  **Next Steps:** Phase 2 implementation following TDD approach
+
+---
+
 ### Added - FEAT-010 Planning Complete: True Token Streaming (2025-10-31)
 - **FEAT-010: True Token Streaming - Planning Documentation Complete**
   - **Status:** ✅ Ready for Implementation
