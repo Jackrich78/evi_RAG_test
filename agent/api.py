@@ -38,7 +38,19 @@ from .models import (
     StreamDelta,
     ErrorResponse,
     HealthStatus,
-    ToolCall
+    ToolCall,
+    # FEAT-007: OpenAI models
+    OpenAIChatRequest,
+    OpenAIChatResponse,
+    OpenAIChatResponseChoice,
+    OpenAIChatResponseMessage,
+    OpenAIStreamChunk,
+    OpenAIStreamChoice,
+    OpenAIStreamDelta,
+    OpenAIModelList,
+    OpenAIModel,
+    OpenAIError,
+    OpenAIErrorResponse
 )
 from .tools import (
     vector_search_tool,
@@ -637,13 +649,146 @@ async def get_session_info(session_id: str):
         logger.error(f"Session retrieval failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# =============================================================================
+# FEAT-007: OpenAI-Compatible Endpoints for OpenWebUI Integration
+# =============================================================================
+
+@app.get("/v1/models")
+async def list_models():
+    """
+    List available models (OpenAI-compatible endpoint).
+
+    Returns single model: evi-specialist
+    """
+    import time
+
+    return OpenAIModelList(
+        object="list",
+        data=[
+            OpenAIModel(
+                id="evi-specialist",
+                object="model",
+                created=int(time.time()),
+                owned_by="evi-360"
+            )
+        ]
+    )
+
+
+@app.post("/v1/chat/completions")
+async def openai_chat_completions(request: OpenAIChatRequest):
+    """
+    OpenAI-compatible chat completions endpoint for OpenWebUI.
+
+    Supports both streaming and non-streaming modes.
+    """
+    import time
+
+    # Validate request
+    if not request.messages:
+        raise HTTPException(
+            status_code=400,
+            detail=OpenAIErrorResponse(
+                error=OpenAIError(
+                    message="Messages array cannot be empty",
+                    type="invalid_request_error",
+                    param="messages"
+                )
+            ).model_dump()
+        )
+
+    # Validate model
+    if request.model != "evi-specialist":
+        raise HTTPException(
+            status_code=404,
+            detail=OpenAIErrorResponse(
+                error=OpenAIError(
+                    message=f"Model '{request.model}' not found. Available: 'evi-specialist'",
+                    type="invalid_request_error",
+                    param="model"
+                )
+            ).model_dump()
+        )
+
+    # Extract last user message (stateless approach)
+    user_message = request.messages[-1].content
+
+    if not user_message or user_message.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail=OpenAIErrorResponse(
+                error=OpenAIError(
+                    message="Message content cannot be empty",
+                    type="invalid_request_error",
+                    param="messages"
+                )
+            ).model_dump()
+        )
+
+    # Generate session ID (stateless)
+    session_id = str(uuid.uuid4())
+
+    if request.stream:
+        # Streaming mode
+        async def generate_sse():
+            """Generate Server-Sent Events in OpenAI format."""
+            chunk_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
+            created_time = int(time.time())
+
+            # Initial chunk with role
+            yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]})}\n\n'
+
+            # Stream content from specialist agent
+            async for chunk_type, chunk_data in run_specialist_query_stream(user_message, session_id):
+                if chunk_type == "text":
+                    # Text delta chunk
+                    yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"content": chunk_data}, "finish_reason": None}]})}\n\n'
+                elif chunk_type == "final":
+                    # Final response received - citations are in chunk_data
+                    pass  # Citations already streamed as part of content
+
+            # Final chunk
+            yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})}\n\n'
+
+            # Done signal
+            yield 'data: [DONE]\n\n'
+
+        return StreamingResponse(generate_sse(), media_type="text/event-stream")
+
+    else:
+        # Non-streaming mode
+        result = await run_specialist_query(user_message, session_id)
+
+        # Format response in OpenAI format
+        return OpenAIChatResponse(
+            id=f"chatcmpl-{uuid.uuid4().hex[:8]}",
+            object="chat.completion",
+            created=int(time.time()),
+            model="evi-specialist",
+            choices=[
+                OpenAIChatResponseChoice(
+                    index=0,
+                    message=OpenAIChatResponseMessage(
+                        role="assistant",
+                        content=result.content
+                    ),
+                    finish_reason="stop"
+                )
+            ],
+            usage={
+                "prompt_tokens": len(user_message.split()),
+                "completion_tokens": len(result.content.split()),
+                "total_tokens": len(user_message.split()) + len(result.content.split())
+            }
+        )
+
 
 # Exception handlers
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler."""
     logger.error(f"Unhandled exception: {exc}")
-    
+
     return ErrorResponse(
         error=str(exc),
         error_type=type(exc).__name__,

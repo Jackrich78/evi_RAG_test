@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-10-31T23:02:23.647206",
+  "timestamp": "2025-11-01T18:25:51.757985",
   "compaction_trigger": "manual",
   "user_instructions": "",
   "active_features": [
@@ -86,44 +86,44 @@
   ],
   "recent_changes": [
     {
-      "path": "docs/features/FEAT-010_streaming/implementation.md",
-      "modified": "2025-10-31T22:54:43.223614"
+      "path": "docs/features/FEAT-007_openwebui-integration/implementation.md",
+      "modified": "2025-11-01T17:58:16.948318"
     },
     {
-      "path": "docs/README.md",
-      "modified": "2025-10-31T21:43:32.417145"
+      "path": "docs/features/FEAT-007_openwebui-integration/DOCUMENTATION_UPDATES.md",
+      "modified": "2025-11-01T17:47:05.022558"
+    },
+    {
+      "path": "docs/features/FEAT-007_openwebui-integration/IMPLEMENTATION_GUIDE.md",
+      "modified": "2025-11-01T17:46:05.675658"
     },
     {
       "path": "docs/features/FEAT-007_openwebui-integration/architecture.md",
-      "modified": "2025-10-31T21:43:01.270094"
+      "modified": "2025-11-01T17:44:01.484637"
     },
     {
       "path": "docs/features/FEAT-007_openwebui-integration/prd.md",
-      "modified": "2025-10-31T21:41:53.836155"
+      "modified": "2025-11-01T17:41:52.962129"
+    },
+    {
+      "path": "docs/features/FEAT-007_openwebui-integration/research.md",
+      "modified": "2025-11-01T17:41:24.980973"
+    },
+    {
+      "path": "docs/features/FEAT-007_openwebui-integration/manual-test.md",
+      "modified": "2025-11-01T17:40:39.824358"
+    },
+    {
+      "path": "docs/README.md",
+      "modified": "2025-11-01T00:03:49.035604"
+    },
+    {
+      "path": "docs/features/FEAT-010_streaming/implementation.md",
+      "modified": "2025-10-31T23:59:49.822993"
     },
     {
       "path": "docs/features/FEAT-004_product-catalog/manual-test.md",
       "modified": "2025-10-31T21:33:53.631175"
-    },
-    {
-      "path": "docs/features/FEAT-004_product-catalog/testing.md",
-      "modified": "2025-10-31T21:32:55.403380"
-    },
-    {
-      "path": "docs/features/FEAT-004_product-catalog/acceptance.md",
-      "modified": "2025-10-31T21:32:02.634852"
-    },
-    {
-      "path": "docs/features/FEAT-004_product-catalog/architecture.md",
-      "modified": "2025-10-31T21:31:20.588217"
-    },
-    {
-      "path": "docs/features/FEAT-010_streaming/planning_complete.md",
-      "modified": "2025-10-31T21:29:04.009132"
-    },
-    {
-      "path": "docs/features/FEAT-010_streaming/manual-test.md",
-      "modified": "2025-10-31T21:26:32.950652"
     }
   ],
   "phase": "Phase 1 - Planning & Documentation",

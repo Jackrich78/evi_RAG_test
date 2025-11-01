@@ -76,6 +76,39 @@ services:
     networks:
       - evi_rag_network
 
+  # FEAT-007: OpenWebUI Web Interface for EVI 360 Specialist Agent
+  # ⚠️ Port 3001 (not 3000) because archon-postgrest uses 3000
+  # ⚠️ Mac/Windows only - Linux users change to http://172.17.0.1:8058/v1
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: evi_openwebui
+    restart: unless-stopped
+    ports:
+      - "3001:8080"  # Changed to 3001 to avoid conflict with archon-postgrest
+    environment:
+      # API Configuration - Points to our FastAPI backend
+      - OPENAI_API_BASE_URL=http://host.docker.internal:8058/v1
+      - OPENAI_API_KEY=not-needed  # Our API doesn't require auth yet
+
+      # UI Configuration
+      - WEBUI_NAME=EVI 360 Specialist
+      - DEFAULT_MODELS=evi-specialist
+      - DEFAULT_LOCALE=nl  # Dutch language UI
+
+      # Authentication (disable for internal use, enable for production)
+      - WEBUI_AUTH=false  # Set to 'true' in production
+
+      # Performance
+      - ENABLE_RAG_WEB_SEARCH=false  # We use our own RAG
+      - ENABLE_IMAGE_GENERATION=false
+    volumes:
+      # Persist OpenWebUI data (conversation history, user settings)
+      - openwebui_data:/app/backend/data
+    networks:
+      - evi_rag_network
+    depends_on:
+      - postgres  # Wait for database to be ready
+
 volumes:
   # PostgreSQL persistent storage - NEVER delete this volume in production!
   postgres_data:
@@ -88,6 +121,9 @@ volumes:
   neo4j_import:
     driver: local
   neo4j_plugins:
+    driver: local
+  # OpenWebUI persistent storage (FEAT-007)
+  openwebui_data:
     driver: local
 
 networks:
@@ -199,48 +235,7 @@ networks:
 #   3. Test endpoints with curl/pytest
 #   4. Verify specialist agent returns proper OpenAI format
 #
-# Uncomment the service below after completing prerequisites:
-#
-# openwebui:
-#   image: ghcr.io/open-webui/open-webui:main
-#   container_name: evi_openwebui
-#   restart: unless-stopped
-#   ports:
-#     - "3000:8080"  # OpenWebUI web interface
-#   environment:
-#     # API Configuration - Points to our FastAPI backend
-#     - OPENAI_API_BASE_URL=http://host.docker.internal:8058/v1
-#     - OPENAI_API_KEY=not-needed  # Our API doesn't require auth yet
-#
-#     # UI Configuration
-#     - WEBUI_NAME=EVI 360 Specialist
-#     - DEFAULT_MODELS=evi-specialist
-#     - DEFAULT_LOCALE=nl  # Dutch language UI
-#
-#     # Authentication (disable for internal use, enable for production)
-#     - WEBUI_AUTH=false  # Set to 'true' in production
-#
-#     # Performance
-#     - ENABLE_RAG_WEB_SEARCH=false  # We use our own RAG
-#     - ENABLE_IMAGE_GENERATION=false
-#   volumes:
-#     # Persist OpenWebUI data (conversation history, user settings)
-#     - openwebui_data:/app/backend/data
-#   networks:
-#     - evi_rag_network
-#   depends_on:
-#     - postgres  # Wait for database to be ready
-#
-# Add this to the volumes section when enabling OpenWebUI:
-#
-# volumes:
-#   openwebui_data:
-#     driver: local
-#
-# Usage after enabling:
-#   docker-compose up -d openwebui
-#   Open http://localhost:3000 in browser
-#   Chat interface will call /v1/chat/completions on our FastAPI backend
-#
+# FEAT-007: OpenWebUI service is now active in the services section above
+# Access at: http://localhost:3001 (not 3000, which is used by archon-postgrest)
 # Note: The existing CLI tool (cli.py) will continue to work with /chat/stream
 #       Both endpoints can run simultaneously - they serve different clients.

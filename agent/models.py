@@ -472,3 +472,94 @@ class SpecialistResponse(BaseModel):
     content: str = Field(default="", description="Main response in Dutch")
     citations: List[Citation] = Field(default_factory=list, description="Minimum 2 citations")
     search_metadata: Dict[str, Any] = Field(default_factory=dict, description="Search stats")
+
+
+# =============================================================================
+# FEAT-007: OpenAI-Compatible Models for OpenWebUI Integration
+# =============================================================================
+
+class OpenAIChatMessage(BaseModel):
+    """Single message in OpenAI chat format."""
+    role: Literal["system", "user", "assistant"]
+    content: str
+
+
+class OpenAIChatRequest(BaseModel):
+    """OpenAI-compatible chat completion request."""
+    model: str = Field(description="Model ID (e.g., 'evi-specialist')")
+    messages: List[OpenAIChatMessage] = Field(description="Conversation history")
+    stream: bool = Field(default=False, description="Enable SSE streaming")
+    temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: Optional[int] = Field(default=2000, ge=1)
+
+
+class OpenAIChatResponseMessage(BaseModel):
+    """Message in OpenAI chat completion response."""
+    role: Literal["assistant"] = "assistant"
+    content: str
+
+
+class OpenAIChatResponseChoice(BaseModel):
+    """Single response choice in OpenAI format."""
+    index: int = 0
+    message: OpenAIChatResponseMessage
+    finish_reason: str = "stop"
+
+
+class OpenAIChatResponse(BaseModel):
+    """OpenAI-compatible chat completion response (non-streaming)."""
+    id: str = Field(description="Unique completion ID")
+    object: str = "chat.completion"
+    created: int = Field(description="Unix timestamp")
+    model: str = "evi-specialist"
+    choices: List[OpenAIChatResponseChoice]
+    usage: Optional[Dict[str, int]] = None  # Optional token usage stats
+
+
+class OpenAIStreamDelta(BaseModel):
+    """Delta content in streaming chunk."""
+    role: Optional[str] = None
+    content: Optional[str] = None
+
+
+class OpenAIStreamChoice(BaseModel):
+    """Choice in streaming chunk."""
+    index: int = 0
+    delta: OpenAIStreamDelta
+    finish_reason: Optional[str] = None
+
+
+class OpenAIStreamChunk(BaseModel):
+    """Single SSE chunk in OpenAI streaming format."""
+    id: str
+    object: str = "chat.completion.chunk"
+    created: int
+    model: str = "evi-specialist"
+    choices: List[OpenAIStreamChoice]
+
+
+class OpenAIError(BaseModel):
+    """OpenAI-compatible error format."""
+    message: str
+    type: str
+    param: Optional[str] = None
+    code: Optional[str] = None
+
+
+class OpenAIErrorResponse(BaseModel):
+    """OpenAI error response wrapper."""
+    error: OpenAIError
+
+
+class OpenAIModel(BaseModel):
+    """OpenAI model object."""
+    id: str
+    object: str = "model"
+    created: int
+    owned_by: str
+
+
+class OpenAIModelList(BaseModel):
+    """OpenAI models list response."""
+    object: str = "list"
+    data: List[OpenAIModel]
