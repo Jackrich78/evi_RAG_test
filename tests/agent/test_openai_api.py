@@ -75,7 +75,7 @@ def test_openai_chat_completions_non_streaming(client, mock_specialist_response)
         "id": "chatcmpl-...",
         "object": "chat.completion",
         "created": 1234567890,
-        "model": "evi-specialist-v1",
+        "model": "evi-specialist",
         "choices": [{
             "index": 0,
             "message": {
@@ -144,7 +144,7 @@ def test_list_models(client):
     Test /v1/models endpoint returns EVI specialist model.
 
     Validates:
-    - AC-007-010: Model list includes 'evi-specialist-v1'
+    - AC-007-010: Model list includes 'evi-specialist'
     - Response format matches OpenAI Models list
     - Model metadata includes capabilities
     - Model object includes id, object, created, owned_by fields
@@ -157,12 +157,12 @@ def test_list_models(client):
         "object": "list",
         "data": [
             {
-                "id": "evi-specialist-v1",
+                "id": "evi-specialist",
                 "object": "model",
                 "created": 1234567890,
                 "owned_by": "evi-360",
                 "permission": [],
-                "root": "evi-specialist-v1",
+                "root": "evi-specialist",
                 "parent": null
             }
         ]
@@ -172,7 +172,7 @@ def test_list_models(client):
     - Send GET request to /v1/models
     - Assert response status code is 200
     - Assert response format matches OpenAI spec
-    - Assert 'evi-specialist-v1' model is in list
+    - Assert 'evi-specialist' model is in list
     - Assert model object has required fields (id, object, created, owned_by)
     - Assert model metadata indicates Dutch language support
     """

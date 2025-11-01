@@ -573,9 +573,14 @@ volumes:
 
 **API Connection:**
 - `OPENAI_API_BASE_URL=http://host.docker.internal:8058/v1`
-  - Use `host.docker.internal` on Mac/Windows (Docker Desktop)
-  - Use `172.17.0.1` on Linux (Docker native)
+  - **IMPORTANT**: This configuration is for **Mac/Windows development environments only** (Docker Desktop)
+  - Uses `host.docker.internal` to access host machine from container
+  - Linux users need to change to `172.17.0.1` or use `network_mode: host`
   - Your API must be running on port 8058 (already is)
+
+**Development Environment Requirement:**
+- ⚠️ **Mac or Windows with Docker Desktop required** for this configuration
+- Linux users must modify `OPENAI_API_BASE_URL` environment variable
 
 **Port Mapping:**
 - `3000:8080` - Access OpenWebUI at `http://localhost:3000`

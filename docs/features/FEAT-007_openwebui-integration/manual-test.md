@@ -59,7 +59,7 @@ Before starting manual tests, ensure:
 
 - ✅ OpenWebUI interface loads within 3 seconds
 - ✅ No console errors or network failures
-- ✅ Model dropdown includes "evi-specialist-v1"
+- ✅ Model dropdown includes "evi-specialist"
 - ✅ API endpoint correctly configured to port 8058
 
 **Actual Results:**
@@ -312,7 +312,7 @@ docker logs openwebui --tail 50
 curl -X POST http://localhost:8058/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "evi-specialist-v1",
+    "model": "evi-specialist",
     "messages": [{"role": "user", "content": "Test vraag"}],
     "stream": false
   }'

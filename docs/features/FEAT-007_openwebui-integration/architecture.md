@@ -61,13 +61,18 @@ EVI 360 RAG system currently provides API endpoints for retrieving workplace saf
 **Description:**
 Deploy OpenWebUI as a separate Docker container that connects to our FastAPI backend via HTTP REST API. OpenWebUI handles UI, conversation management, and LLM orchestration while delegating all guideline/product retrieval to existing endpoints.
 
+**Development Environment:**
+- ⚠️ **Mac/Windows with Docker Desktop required** for standard configuration
+- Uses `host.docker.internal` for container-to-host communication
+- Linux users must modify Docker networking (use `172.17.0.1` or `network_mode: host`)
+
 **Architecture:**
 ```
 User (Browser)
     ↓
 OpenWebUI Container (port 3000) ← NEW SERVICE (not in project yet)
     ↓ HTTP POST /v1/chat/completions ← NEW ENDPOINT (OpenAI format)
-FastAPI Backend (port 8058)
+FastAPI Backend (port 8058) [Mac/Windows: host.docker.internal:8058]
     ├─ /v1/chat/completions (NEW - for OpenWebUI only)
     ├─ /chat/stream (EXISTING - CLI keeps using this)
     └─ Both call → run_specialist_query() ← SHARED LOGIC
@@ -229,23 +234,416 @@ User → Custom UI (port 3000) → FastAPI + Pydantic AI (port 8000) → Postgre
 
 ---
 
+## Session Management & Conversation History
+
+**Decision:** **Stateless API - Last Message Only**
+
+**How It Works:**
+- OpenWebUI stores ALL conversation history in its internal SQLite database
+- Each API request includes full `messages[]` array from OpenWebUI
+- **Your API extracts ONLY the last user message**: `request.messages[-1].content`
+- API generates new session_id per request (stateless operation)
+- No conversation history stored in PostgreSQL
+
+**Rationale:**
+- ✅ Simplest implementation (2-3 hours vs 1-2 days for full history management)
+- ✅ No database schema changes needed
+- ✅ OpenWebUI already handles conversation UI perfectly
+- ✅ Avoids dual conversation storage (SQLite + PostgreSQL)
+
+**Code Example:**
+```python
+@app.post("/v1/chat/completions")
+async def openai_chat_completions(request: OpenAIChatRequest):
+    # Extract ONLY last user message (stateless)
+    user_message = request.messages[-1].content
+
+    # Generate new session ID (not persistent)
+    session_id = str(uuid.uuid4())
+
+    # Call specialist agent with single message
+    response = await run_specialist_query(user_message, session_id)
+
+    return format_openai_response(response)
+```
+
+**Trade-offs:**
+- ⚠️ No cross-system conversation analytics
+- ⚠️ Conversation history not available via API
+- ✅ Acceptable for MVP - OpenWebUI provides all history features users need
+
+**Future Enhancement (Post-MVP):**
+If needed, could optionally store conversations in PostgreSQL for:
+- Analytics and insights
+- Cross-system conversation access
+- Advanced context management
+
+---
+
+## Streaming Implementation
+
+**Decision:** **Reuse Existing Streaming - Add OpenAI Format Adapter**
+
+**Existing Streaming (agent/api.py:415-519):**
+- Endpoint: `/chat/stream` (used by CLI)
+- Function: `run_specialist_query_stream()` from specialist_agent.py
+- Format: Custom SSE with `{"type": "text", "content": "..."}` chunks
+- Status: ✅ **Working perfectly** - powers CLI streaming
+
+**New Streaming for OpenWebUI:**
+- Endpoint: `/v1/chat/completions` (to be added)
+- Function: **Reuse same `run_specialist_query_stream()`**
+- Format: Add adapter to convert → OpenAI SSE format
+- Location: **In agent/api.py** (near existing `/chat/stream` endpoint)
+
+**Implementation Approach:**
+```python
+# agent/api.py (add near line 519, after /chat/stream)
+
+async def stream_openai_format(specialist_stream, model="evi-specialist"):
+    """
+    Adapter: Converts specialist agent stream to OpenAI SSE format.
+
+    Reuses existing run_specialist_query_stream() output.
+    """
+    chunk_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
+
+    # Initial chunk with role
+    yield {
+        "id": chunk_id,
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{
+            "index": 0,
+            "delta": {"role": "assistant", "content": ""},
+            "finish_reason": None
+        }]
+    }
+
+    # Stream content from existing specialist agent
+    # Note: run_specialist_query_stream() yields tuples: ("text", delta) or ("final", response)
+    async for item in specialist_stream:
+        item_type, data = item
+
+        if item_type == "text":
+            # Convert custom format → OpenAI format
+            yield {
+                "id": chunk_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": model,
+                "choices": [{
+                    "index": 0,
+                    "delta": {"content": data},  # data is the text delta
+                    "finish_reason": None
+                }]
+            }
+        elif item_type == "final":
+            # Optional: Stream citations here if needed
+            pass
+
+    # Final chunk
+    yield {
+        "id": chunk_id,
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{
+            "index": 0,
+            "delta": {},
+            "finish_reason": "stop"
+        }]
+    }
+
+@app.post("/v1/chat/completions")
+async def openai_chat_completions(request: OpenAIChatRequest):
+    """OpenAI-compatible endpoint for OpenWebUI."""
+    if request.stream:
+        # Reuse existing streaming logic!
+        specialist_stream = run_specialist_query_stream(
+            query=request.messages[-1].content,
+            session_id=str(uuid.uuid4()),
+            user_id="openwebui"
+        )
+
+        # Wrap with OpenAI format adapter
+        async def generate():
+            async for chunk in stream_openai_format(specialist_stream):
+                yield f"data: {json.dumps(chunk)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    else:
+        # Non-streaming mode...
+```
+
+**Why This Approach:**
+- ✅ **Zero duplication** - reuses battle-tested streaming logic
+- ✅ **Minimal code** - just a format adapter (30-40 lines)
+- ✅ **Maintainable** - one streaming implementation, two format adapters
+- ✅ **Fast** - no performance overhead
+- ⏱️ 1-2 hours implementation
+
+**Key Points:**
+- Both endpoints share `run_specialist_query_stream()` function
+- Adapter only converts data format (custom → OpenAI)
+- No changes to specialist agent or streaming core
+- Both CLI and OpenWebUI streaming work independently
+
+---
+
 ## Endpoint Comparison
 
 Understanding the two API endpoints and their purposes:
 
 | Endpoint | Used By | Request Format | Response Format | Status | Purpose |
 |----------|---------|---------------|-----------------|--------|---------|
-| `/chat/stream` | CLI tool ([cli.py](../../../cli.py)) | Custom (ChatRequest) | SSE stream (custom) | ✅ **Exists** | Terminal-based chat interface |
-| `/v1/chat/completions` | OpenWebUI (web UI) | OpenAI format | OpenAI SSE/JSON | ⚠️ **To be added** | Web browser chat interface |
+| `/chat/stream` | CLI tool ([cli.py](../../../cli.py)) | Custom (ChatRequest) | SSE stream (custom) | ✅ **Exists** (api.py:415) | Terminal-based chat interface |
+| `/v1/chat/completions` | OpenWebUI (web UI) | OpenAI format | OpenAI SSE/JSON | ⚠️ **To be added** (api.py:~520) | Web browser chat interface |
 
 **Key Points:**
-- **Same backend logic**: Both endpoints call `run_specialist_query()` from [specialist_agent.py](../../../agent/specialist_agent.py)
+- **Same backend logic**: Both endpoints call `run_specialist_query_stream()` from [specialist_agent.py](../../../agent/specialist_agent.py)
 - **Different clients**: CLI uses terminal, OpenWebUI uses web browser
-- **Format adapter**: `/v1/chat/completions` translates OpenAI format → specialist agent → OpenAI format
+- **Format adapter**: `/v1/chat/completions` wraps specialist stream with OpenAI format converter
 - **No breaking changes**: Adding `/v1/chat/completions` does NOT affect existing `/chat/stream` endpoint
 - **Parallel operation**: Both endpoints will work simultaneously (CLI and web UI can coexist)
 
 **Example Flow Comparison:**
+
+```
+CLI Workflow (Existing):
+User types in terminal → cli.py → POST /chat/stream → run_specialist_query_stream() → Dutch response
+
+OpenWebUI Workflow (New):
+User types in browser → OpenWebUI → POST /v1/chat/completions → stream_openai_format(run_specialist_query_stream()) → Dutch response
+```
+
+---
+
+## Implementation Details
+
+### Required Pydantic Models (agent/models.py)
+
+Add these models to `agent/models.py` for OpenAI-compatible request/response handling:
+
+```python
+from typing import List, Optional, Literal
+from pydantic import BaseModel, Field
+
+class OpenAIChatMessage(BaseModel):
+    """Single message in OpenAI chat format."""
+    role: Literal["system", "user", "assistant"]
+    content: str
+
+class OpenAIChatRequest(BaseModel):
+    """OpenAI-compatible chat completion request."""
+    model: str = Field(description="Model ID (e.g., 'evi-specialist')")
+    messages: List[OpenAIChatMessage] = Field(description="Conversation history")
+    stream: bool = Field(default=False, description="Enable SSE streaming")
+    temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: Optional[int] = Field(default=2000, ge=1)
+
+class OpenAIChatResponseChoice(BaseModel):
+    """Single response choice in OpenAI format."""
+    index: int = 0
+    message: OpenAIChatMessage
+    finish_reason: str = "stop"
+
+class OpenAIChatResponse(BaseModel):
+    """OpenAI-compatible chat completion response (non-streaming)."""
+    id: str = Field(description="Unique completion ID")
+    object: str = "chat.completion"
+    created: int = Field(description="Unix timestamp")
+    model: str = "evi-specialist"
+    choices: List[OpenAIChatResponseChoice]
+    usage: Optional[dict] = None  # Optional token usage stats
+
+class OpenAIStreamChunk(BaseModel):
+    """Single SSE chunk in OpenAI streaming format."""
+    id: str
+    object: str = "chat.completion.chunk"
+    created: int
+    model: str = "evi-specialist"
+    choices: List[dict]  # [{index: 0, delta: {content: "..."}, finish_reason: None}]
+```
+
+### Required Imports (agent/api.py)
+
+Add to existing imports in `agent/api.py`:
+
+```python
+import time
+import uuid
+import json
+from agent.models import (
+    OpenAIChatRequest,
+    OpenAIChatResponse,
+    OpenAIChatResponseChoice,
+    OpenAIChatMessage
+)
+```
+
+### File Structure
+
+```
+agent/
+├── api.py (MODIFY)
+│   ├── Line ~415: /chat/stream (existing)
+│   ├── Line ~520: stream_openai_format() (NEW helper function)
+│   ├── Line ~580: @app.get("/v1/models") (NEW endpoint)
+│   ├── Line ~600: @app.post("/v1/chat/completions") (NEW endpoint)
+│   └── Existing endpoints unchanged
+├── models.py (MODIFY)
+│   └── Add OpenAI* models (6 new classes, ~60 lines)
+└── specialist_agent.py (NO CHANGES)
+```
+
+### Error Handling
+
+Add OpenAI-compatible error responses:
+
+```python
+# agent/api.py
+
+class OpenAIError(BaseModel):
+    """OpenAI-compatible error format."""
+    message: str
+    type: str
+    param: Optional[str] = None
+    code: Optional[str] = None
+
+class OpenAIErrorResponse(BaseModel):
+    error: OpenAIError
+
+@app.post("/v1/chat/completions")
+async def openai_chat_completions(request: OpenAIChatRequest):
+    try:
+        # Validate model ID
+        if request.model != "evi-specialist":
+            raise HTTPException(
+                status_code=404,
+                detail=OpenAIErrorResponse(
+                    error=OpenAIError(
+                        message=f"Model '{request.model}' not found. Available: 'evi-specialist'",
+                        type="invalid_request_error",
+                        param="model"
+                    )
+                ).dict()
+            )
+
+        # Validate messages not empty
+        if not request.messages:
+            raise HTTPException(
+                status_code=400,
+                detail=OpenAIErrorResponse(
+                    error=OpenAIError(
+                        message="Messages array cannot be empty",
+                        type="invalid_request_error",
+                        param="messages"
+                    )
+                ).dict()
+            )
+
+        # Extract last user message
+        user_message = request.messages[-1].content
+
+        if not user_message or user_message.strip() == "":
+            raise HTTPException(
+                status_code=400,
+                detail=OpenAIErrorResponse(
+                    error=OpenAIError(
+                        message="Message content cannot be empty",
+                        type="invalid_request_error",
+                        param="messages"
+                    )
+                ).dict()
+            )
+
+        # ... rest of implementation ...
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OpenAI endpoint error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=OpenAIErrorResponse(
+                error=OpenAIError(
+                    message="Internal server error processing request",
+                    type="internal_server_error"
+                )
+            ).dict()
+        )
+```
+
+### Testing Files
+
+Tests already stubbed in `/Users/builder/dev/evi_rag_test/tests/agent/test_openai_api.py`:
+- 8 test stubs with TODO comments
+- Test fixtures for mocking specialist responses
+- Coverage: non-streaming, streaming, model list, errors, citations
+
+### Docker Compose Updates
+
+Add to existing `docker-compose.yml`:
+
+```yaml
+# Add after neo4j service
+
+openwebui:
+  image: ghcr.io/open-webui/open-webui:main
+  container_name: evi_openwebui
+  restart: unless-stopped
+  ports:
+    - "3000:8080"
+  environment:
+    - OPENAI_API_BASE_URL=http://host.docker.internal:8058/v1  # Mac/Windows only
+    - OPENAI_API_KEY=not-needed
+    - WEBUI_NAME=EVI 360 Specialist
+    - DEFAULT_MODELS=evi-specialist
+    - DEFAULT_LOCALE=nl
+    - WEBUI_AUTH=false
+    - ENABLE_RAG_WEB_SEARCH=false
+    - ENABLE_IMAGE_GENERATION=false
+    - ENABLE_COMMUNITY_SHARING=false
+  volumes:
+    - openwebui_data:/app/backend/data
+  networks:
+    - evi_rag_network
+  depends_on:
+    - postgres
+
+volumes:
+  # ... existing volumes ...
+  openwebui_data:
+    driver: local
+```
+
+### Implementation Checklist
+
+Before starting implementation:
+- [x] Model ID consolidated to `evi-specialist`
+- [x] Docker networking clarified (Mac/Windows only)
+- [x] Session management approach decided (stateless, last message only)
+- [x] Streaming approach clarified (reuse existing + adapter)
+- [x] Required models documented (6 Pydantic classes)
+- [x] Required imports listed
+- [x] Error handling pattern documented
+- [x] File structure and line numbers specified
+
+**Estimated Implementation Time:** 4-6 hours
+- Phase 1: Pydantic models + /v1/models endpoint (1 hour)
+- Phase 2: /v1/chat/completions non-streaming (1.5 hours)
+- Phase 3: Streaming adapter (1.5 hours)
+- Phase 4: Docker integration (1 hour)
+- Phase 5: Testing (1-2 hours)
+
+---
+
+## Spike Plan
+
+**Previous content below this line...**
 
 ```
 CLI Workflow (Existing):

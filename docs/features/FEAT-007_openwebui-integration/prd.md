@@ -193,6 +193,9 @@ data: [DONE]
 ### Docker Compose Addition
 
 ```yaml
+# ⚠️ DEVELOPMENT ENVIRONMENT: Mac/Windows with Docker Desktop required
+# Linux users must change OPENAI_API_BASE_URL to http://172.17.0.1:8058/v1
+
 services:
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
@@ -200,7 +203,7 @@ services:
     ports:
       - "3000:8080"
     environment:
-      - OPENAI_API_BASE_URL=http://host.docker.internal:8058/v1
+      - OPENAI_API_BASE_URL=http://host.docker.internal:8058/v1  # Mac/Windows only
       - OPENAI_API_KEY=not-needed  # Placeholder
       - WEBUI_NAME=EVI 360 Specialist
       - DEFAULT_MODELS=evi-specialist
