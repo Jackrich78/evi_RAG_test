@@ -130,7 +130,8 @@ async def vector_search_tool(input_data: VectorSearchInput) -> List[ChunkResult]
                 score=r["similarity"],
                 metadata=r["metadata"],
                 document_title=r["document_title"],
-                document_source=r["document_source"]
+                document_source=r["document_source"],
+                source_url=r.get("source_url")
             )
             for r in results
         ]
@@ -203,7 +204,8 @@ async def hybrid_search_tool(input_data: HybridSearchInput) -> List[ChunkResult]
                 score=r["combined_score"],
                 metadata=r["metadata"],
                 document_title=r["document_title"],
-                document_source=r["document_source"]
+                document_source=r["document_source"],
+                source_url=r.get("source_url")
             )
             for r in results
         ]

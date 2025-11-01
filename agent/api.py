@@ -456,8 +456,7 @@ async def chat_stream(request: ChatRequest):
                 async for item in run_specialist_query_stream(
                     query=request.message,
                     session_id=session_id,
-                    user_id=request.user_id or "cli_user",
-                    language=request.language
+                    user_id=request.user_id or "cli_user"
                 ):
                     # Handle tuple: ("text", delta) or ("final", response)
                     item_type, data = item
@@ -731,29 +730,55 @@ async def openai_chat_completions(request: OpenAIChatRequest):
     if request.stream:
         # Streaming mode
         async def generate_sse():
-            """Generate Server-Sent Events in OpenAI format."""
+            """Generate Server-Sent Events in OpenAI format with error handling."""
             chunk_id = f"chatcmpl-{uuid.uuid4().hex[:8]}"
             created_time = int(time.time())
 
-            # Initial chunk with role
-            yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]})}\n\n'
+            try:
+                # Initial chunk with role
+                yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]})}\n\n'
 
-            # Stream content from specialist agent
-            async for chunk_type, chunk_data in run_specialist_query_stream(user_message, session_id):
-                if chunk_type == "text":
-                    # Text delta chunk
-                    yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"content": chunk_data}, "finish_reason": None}]})}\n\n'
-                elif chunk_type == "final":
-                    # Final response received - citations are in chunk_data
-                    pass  # Citations already streamed as part of content
+                # Stream content from specialist agent
+                async for chunk_type, chunk_data in run_specialist_query_stream(user_message, session_id):
+                    if chunk_type == "text":
+                        # Text delta chunk
+                        yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"content": chunk_data}, "finish_reason": None}]})}\n\n'
+                    elif chunk_type == "final":
+                        # Final response received - citations are in chunk_data
+                        pass  # Citations already streamed as part of content
 
-            # Final chunk
-            yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})}\n\n'
+                # Final chunk
+                yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})}\n\n'
 
-            # Done signal
-            yield 'data: [DONE]\n\n'
+            except Exception as e:
+                logger.error(f"Streaming error: {e}", exc_info=True)
+                # Send error as SSE event (OpenAI format)
+                error_chunk = {
+                    "id": chunk_id,
+                    "object": "chat.completion.chunk",
+                    "created": created_time,
+                    "model": "evi-specialist",
+                    "choices": [{
+                        "index": 0,
+                        "delta": {"content": f"\n\n[Error: {str(e)}]"},
+                        "finish_reason": "error"
+                    }]
+                }
+                yield f'data: {json.dumps(error_chunk)}\n\n'
 
-        return StreamingResponse(generate_sse(), media_type="text/event-stream")
+            finally:
+                # Always send DONE marker
+                yield 'data: [DONE]\n\n'
+
+        return StreamingResponse(
+            generate_sse(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
 
     else:
         # Non-streaming mode

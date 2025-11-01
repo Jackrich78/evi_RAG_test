@@ -399,7 +399,8 @@ async def vector_search(
                 "similarity": row["similarity"],
                 "metadata": json.loads(row["metadata"]),
                 "document_title": row["document_title"],
-                "document_source": row["document_source"]
+                "document_source": row["document_source"],
+                "source_url": row.get("source_url")
             }
             for row in results
         ]
@@ -446,7 +447,8 @@ async def hybrid_search(
                 "text_similarity": row["text_similarity"],
                 "metadata": json.loads(row["metadata"]),
                 "document_title": row["document_title"],
-                "document_source": row["document_source"]
+                "document_source": row["document_source"],
+                "source_url": row.get("source_url")
             }
             for row in results
         ]

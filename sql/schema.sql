@@ -74,20 +74,22 @@ RETURNS TABLE (
     similarity FLOAT,
     metadata JSONB,
     document_title TEXT,
-    document_source TEXT
+    document_source TEXT,
+    source_url TEXT
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         c.id AS chunk_id,
         c.document_id,
         c.content,
         1 - (c.embedding <=> query_embedding) AS similarity,
         c.metadata,
         d.title AS document_title,
-        d.source AS document_source
+        d.source AS document_source,
+        d.metadata->>'source_url' AS source_url
     FROM chunks c
     JOIN documents d ON c.document_id = d.id
     WHERE c.embedding IS NOT NULL

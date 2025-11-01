@@ -29,92 +29,77 @@ from .providers import get_llm_model
 
 logger = logging.getLogger(__name__)
 
-# Dutch system prompt for specialist agent
-# FEAT-007: Updated with structured markdown citation format for OpenWebUI
-SPECIALIST_SYSTEM_PROMPT_NL = """Je bent een Nederlandse arbeidsveiligheidsspecialist voor EVI 360.
+# Single language-agnostic system prompt for specialist agent
+# FEAT-007 POST-MVP: Language detection via LLM instead of hardcoded prompts
+SPECIALIST_SYSTEM_PROMPT = """You are a workplace safety specialist for EVI 360.
 
-Je taak:
-- Beantwoord vragen over arbeidsveiligheid in het Nederlands
-- Gebruik de zoekfunctie om relevante richtlijnen te vinden
-- Geef duidelijke, praktische antwoorden met bronvermeldingen
-- Citeer altijd minimaal 2 bronnen (NVAB, STECR, UWV, Arboportaal, ARBO)
-- Gebruik informele toon (je/jij, niet u)
-
-Belangrijk:
-- Antwoord ALLEEN in het Nederlands (geen Engels!)
-- Geen producten aanbevelen (niet in deze versie)
-- Geen tier-systeem gebruiken (niet in deze versie)
-- Wees accuraat en gebaseer antwoorden op gevonden richtlijnen
-
-**Antwoordstructuur (belangrijk voor webinterface):**
-
-1. **Kort Antwoord** (2-3 zinnen)
-   Geef direct het belangrijkste antwoord.
-
-2. **Details**
-   Leg uit met specifieke informatie uit de richtlijnen.
-
-3. **📚 Bronnen**
-
-   Vermeld de gebruikte richtlijnen als blockquotes:
-
-   > **[Richtlijn Titel]** (Bron: NVAB/STECR/UWV/etc.)
-   > "Relevant citaat of samenvatting..."
-
-   > **[Tweede Richtlijn]** (Bron: ...)
-   > "Relevant citaat of samenvatting..."
-
-4. **Praktisch Advies** (indien relevant)
-   Concrete stappen of aanbevelingen.
-
-Citaties:
-- Voor citation.title: gebruik de document_title uit de zoekresultaten
-- Voor citation.source: gebruik ook de document_title (NIET document_source!)
-- Voor citation.quote: geef een relevante quote uit de content
-
-Als je geen relevante richtlijnen vindt:
-"Ik heb geen specifieke richtlijnen gevonden voor deze vraag. Probeer een andere formulering of neem contact op met een specialist."
-"""
-
-# English system prompt for specialist agent
-SPECIALIST_SYSTEM_PROMPT_EN = """You are a Dutch workplace safety specialist for EVI 360.
+**CRITICAL: Respond in the SAME language as the user's question.**
+- If the user writes in Dutch → respond in Dutch
+- If the user writes in English → respond in English
+- Match the user's language naturally
 
 Your task:
-- Answer workplace safety questions in English
+- Answer workplace safety questions clearly and practically
 - Use the search function to find relevant Dutch guidelines
-- Provide clear, practical answers
+- Provide clear, actionable answers with source citations
 - Always cite at least 2 sources (NVAB, STECR, UWV, Arboportaal, ARBO)
-- Use informal tone
+- Use informal, friendly tone
 
 Important:
-- Answer in English (the guidelines are in Dutch, but translate key points)
 - Do not recommend products (not in this version)
 - Do not use tier system (not in this version)
 - Be accurate and base answers on found guidelines
+- If guidelines are in Dutch but user asks in English, translate key points naturally
 
-Citations:
-- For citation.title: use the document_title from search results
-- For citation.source: also use the document_title (NOT document_source!)
-- For citation.quote: provide a relevant quote from the content
+**Response Structure:**
 
-Format:
-1. First give a brief answer (2-3 sentences)
-2. Then explain details with citations
-3. End with practical advice if relevant
+1. **Brief Answer** (2-3 sentences in user's language)
+   Give the main answer directly.
 
-If no relevant guidelines found:
-"I couldn't find specific guidelines for this question. Try rephrasing or contact a specialist."
+2. **Details**
+   Explain with specific information from the guidelines.
+
+3. **📚 Bronnen / Sources**
+
+   List sources as clickable markdown links in blockquotes:
+
+   > **[Guideline Title](https://nvab-online.nl/path/to/guideline)**
+   > "Relevant quote from the guideline..."
+
+   > **[Second Guideline](https://uwv.nl/path/to/guideline)**
+   > "Second relevant quote..."
+
+4. **Practical Advice** (if relevant)
+   Concrete steps or recommendations.
+
+**Citations (for structured data):**
+You must create at least 2 Citation objects:
+- citation.title: Use document_title from search results
+- citation.url: Use source_url if available (this is the actual guideline URL)
+- citation.quote: Provide relevant quote from content
+
+IMPORTANT: Always create markdown links in response content: [Title](url)
+If source_url is missing or null, create citation without URL: **Title** (no link)
+
+If you cannot find 2 separate sources, use the same source twice with different quotes.
+
+If no relevant guidelines found, respond in user's language:
+- Dutch: "Ik heb geen specifieke richtlijnen gevonden voor deze vraag. Probeer de vraag anders te formuleren of neem contact op met een specialist."
+- English: "I couldn't find specific guidelines for this question. Try rephrasing or contact a specialist."
 """
 
 
-# Create specialist agents for both languages
+# Create specialist agent with language-agnostic prompt
 def _create_specialist_agent(language: str = "nl") -> Agent:
-    """Create specialist agent with specified language prompt."""
-    prompt = SPECIALIST_SYSTEM_PROMPT_NL if language == "nl" else SPECIALIST_SYSTEM_PROMPT_EN
+    """
+    Create specialist agent with language-agnostic prompt.
 
+    Note: language parameter is kept for backward compatibility but ignored.
+    LLM detects language from user's question naturally.
+    """
     agent = Agent(
         model=get_llm_model(),  # Will use GPT-4 or configured model
-        system_prompt=prompt,
+        system_prompt=SPECIALIST_SYSTEM_PROMPT,  # Single prompt for all languages
         output_type=SpecialistResponse,
         deps_type=SpecialistDeps
     )
@@ -233,29 +218,29 @@ async def validate_dutch_response(ctx: RunContext[SpecialistDeps], response: Spe
 async def run_specialist_query(
     query: str,
     session_id: Optional[str] = None,
-    user_id: str = "cli_user",
-    language: str = "nl"
+    user_id: str = "cli_user"
 ) -> SpecialistResponse:
     """
     Convenience function to run a single specialist query.
 
     Wraps specialist_agent.run() with automatic dependency setup.
+    Language is automatically detected from the query - no need to specify.
 
     Args:
-        query: Safety question (in Dutch or English)
+        query: Safety question (in Dutch or English - language auto-detected)
         session_id: Optional session ID (generates UUID if None)
         user_id: User identifier (default: "cli_user")
-        language: Response language - "nl" (Dutch) or "en" (English), default "nl"
 
     Returns:
         SpecialistResponse with content, citations, metadata
 
     Example:
-        >>> response = await run_specialist_query("What are the requirements for working at height?", language="en")
-        >>> print(response.content)
+        >>> response = await run_specialist_query("What are the requirements for working at height?")
+        >>> print(response.content)  # Responds in English
         "For working at height..."
-        >>> print(response.citations[0].title)
-        "NVAB Richtlijn: Werken op Hoogte"
+        >>> response = await run_specialist_query("Wat zijn de vereisten voor werken op hoogte?")
+        >>> print(response.content)  # Responds in Dutch
+        "Voor werken op hoogte..."
     """
     # Generate session ID if not provided
     if not session_id:
@@ -267,8 +252,8 @@ async def run_specialist_query(
         user_id=user_id
     )
 
-    # Create agent with appropriate language
-    agent = _create_specialist_agent(language)
+    # Create agent (language detected automatically from query)
+    agent = _create_specialist_agent()
 
     # Register the search_guidelines tool on this agent instance
     @agent.tool
@@ -319,20 +304,19 @@ async def run_specialist_query(
 async def run_specialist_query_stream(
     query: str,
     session_id: Optional[str] = None,
-    user_id: str = "cli_user",
-    language: str = "nl"
+    user_id: str = "cli_user"
 ):
     """
     Stream specialist agent response token-by-token (FEAT-010).
 
     Uses Pydantic AI 0.3.2's .stream_structured() for true streaming.
     Yields text deltas during generation, then yields final response with citations.
+    Language is automatically detected from the query.
 
     Args:
-        query: Safety question (in Dutch or English)
+        query: Safety question (in Dutch or English - language auto-detected)
         session_id: Optional session ID (generates UUID if None)
         user_id: User identifier (default: "cli_user")
-        language: Response language - "nl" (Dutch) or "en" (English), default "nl"
 
     Yields:
         tuple[str, str | SpecialistResponse]:
@@ -358,8 +342,8 @@ async def run_specialist_query_stream(
         user_id=user_id
     )
 
-    # Create agent with appropriate language
-    agent = _create_specialist_agent(language)
+    # Create agent (language detected automatically from query)
+    agent = _create_specialist_agent()
 
     # Register the search_guidelines tool on this agent instance
     @agent.tool

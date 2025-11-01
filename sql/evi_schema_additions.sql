@@ -74,7 +74,8 @@ RETURNS TABLE (
     text_similarity FLOAT,
     metadata JSONB,
     document_title TEXT,
-    document_source TEXT
+    document_source TEXT,
+    source_url TEXT
 )
 LANGUAGE plpgsql
 AS $$
@@ -88,7 +89,8 @@ BEGIN
             1 - (c.embedding <=> query_embedding) AS vector_sim,
             c.metadata,
             d.title AS doc_title,
-            d.source AS doc_source
+            d.source AS doc_source,
+            d.metadata->>'source_url' AS source_url
         FROM chunks c
         JOIN documents d ON c.document_id = d.id
         WHERE c.embedding IS NOT NULL
@@ -102,7 +104,8 @@ BEGIN
             ts_rank_cd(to_tsvector('dutch', c.content), plainto_tsquery('dutch', query_text)) AS text_sim,
             c.metadata,
             d.title AS doc_title,
-            d.source AS doc_source
+            d.source AS doc_source,
+            d.metadata->>'source_url' AS source_url
         FROM chunks c
         JOIN documents d ON c.document_id = d.id
         -- Updated to use Dutch language for full-text search
@@ -117,7 +120,8 @@ BEGIN
         CAST(COALESCE(t.text_sim, 0) AS DOUBLE PRECISION) AS text_similarity,
         COALESCE(v.metadata, t.metadata) AS metadata,
         COALESCE(v.doc_title, t.doc_title) AS document_title,
-        COALESCE(v.doc_source, t.doc_source) AS document_source
+        COALESCE(v.doc_source, t.doc_source) AS document_source,
+        COALESCE(v.source_url, t.source_url) AS source_url
     FROM vector_results v
     FULL OUTER JOIN text_results t ON v.chunk_id = t.chunk_id
     ORDER BY combined_score DESC

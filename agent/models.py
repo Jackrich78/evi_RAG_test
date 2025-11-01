@@ -67,7 +67,8 @@ class ChunkResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     document_title: str
     document_source: str
-    
+    source_url: Optional[str] = None
+
     @field_validator('score')
     @classmethod
     def validate_score(cls, v: float) -> float:
@@ -455,8 +456,8 @@ class SpecialistDeps(BaseModel):
 
 class Citation(BaseModel):
     """Citation model for specialist agent responses."""
-    title: str = Field(..., description="Guideline title")
-    source: str = Field(default="Unknown", description="Source organization (NVAB, STECR, UWV, ARBO)")
+    title: str = Field(default="Unknown Source", description="Guideline title")
+    url: Optional[str] = Field(None, description="Source URL if available")
     quote: Optional[str] = Field(None, description="Relevant quote or summary")
 
 
