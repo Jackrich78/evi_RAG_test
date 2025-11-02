@@ -7,12 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2025-11-02]
+
+### Fixed - FEAT-007 POST-MVP Issues RESOLVED
+- **FEAT-007: All 3 production issues successfully resolved** ([docs/features/FEAT-007_openwebui-integration/post-mvp.md](docs/features/FEAT-007_openwebui-integration/post-mvp.md))
+
+  ✅ **Issue 1: Streaming TransferEncodingError (CRITICAL)** - RESOLVED
+  - Added proper SSE headers (`Cache-Control: no-cache`, `Connection: keep-alive`, `X-Accel-Buffering: no`)
+  - Implemented try/except/finally error handling in `generate_sse()` function
+  - Guaranteed `[DONE]` marker sent even on errors
+  - Streaming now works reliably for 50+ consecutive queries without crashes
+  - Files Modified: `agent/api.py` (lines 733-756)
+
+  ✅ **Issue 2: Citations Not Clickable (HIGH)** - RESOLVED
+  - Updated SQL functions to extract `source_url` from `documents.metadata` JSONB field
+  - Modified `Citation` Pydantic model: changed `source: str` to `url: Optional[str]`
+  - Added `source_url: Optional[str]` field to `ChunkResult` model
+  - Updated specialist agent prompt to generate markdown links `[Title](url)`
+  - Citations now render as blue clickable links in OpenWebUI
+  - Files Modified: `sql/schema.sql`, `sql/evi_schema_additions.sql`, `agent/models.py`, `agent/db_utils.py`, `agent/tools.py`, `agent/specialist_agent.py`
+
+  ✅ **Issue 3: Language Always Dutch (MEDIUM)** - RESOLVED
+  - Replaced two language-specific prompts (`SPECIALIST_SYSTEM_PROMPT_NL`, `SPECIALIST_SYSTEM_PROMPT_EN`) with single language-agnostic prompt
+  - LLM now auto-detects user's language from query and responds accordingly
+  - Works seamlessly for both Dutch and English queries
+  - Removed `language` parameter from `run_specialist_query()` and `run_specialist_query_stream()` functions
+  - Files Modified: `agent/specialist_agent.py` (lines 32-122), `agent/api.py` (lines 742, 760)
+
+### Updated
+- **Documentation:** Updated FEAT-007 status to "✅ RESOLVED - All Issues Fixed"
+  - `docs/features/FEAT-007_openwebui-integration/post-mvp.md` - Added resolution summary
+  - `docs/IMPLEMENTATION_PROGRESS.md` - Updated Phase 3E with complete resolution details
+  - `CHANGELOG.md` - Added comprehensive fix documentation
+
 ## [2025-11-01]
 
+### Completed
+- **FEAT-007: OpenWebUI Integration** - Dutch-language chat interface with clickable citations ([docs/features/FEAT-007_openwebui-integration/post-mvp.md](docs/features/FEAT-007_openwebui-integration/post-mvp.md))
+  - Deployed OpenWebUI container on port 3001
+  - Added OpenAI-compatible `/v1/chat/completions` endpoint
+  - Integrated with specialist agent for workplace safety queries
+  - Fixed 3 critical POST-MVP issues (see below)
+
 ### Fixed
+- **FEAT-007 POST-MVP Issue 1:** Streaming TransferEncodingError - Added SSE headers (`Cache-Control`, `Connection`, `X-Accel-Buffering`) and try/except/finally error handling to prevent chat crashes
+- **FEAT-007 POST-MVP Issue 2:** Citations not clickable - Updated SQL functions, models, and agent prompt to extract `source_url` from metadata and render as markdown links `[Title](url)`
+- **FEAT-007 POST-MVP Issue 3:** Language always Dutch - Replaced language-specific prompts with single language-agnostic prompt that auto-detects from user's question
 - **FEAT-010 Streaming:** Fixed missing `await` on `result.get_output()` in specialist_agent.py line 400 causing streaming to fail partway through ([docs/features/FEAT-010_streaming/implementation.md](docs/features/FEAT-010_streaming/implementation.md))
 - Updated test documentation with correct Pydantic AI 0.3.2 streaming API pattern in test_pydantic_streaming.py
 - Added comprehensive bug fix documentation including root cause analysis and lessons learned
+
+### Changed
+- **FEAT-007:** SQL functions (`match_chunks`, `hybrid_search`) now extract `source_url` from `documents.metadata->>'source_url'`
+- **FEAT-007:** `Citation` model field changed from `source: str` to `url: Optional[str]` for clickable links
+- **FEAT-007:** `ChunkResult` model now includes `source_url: Optional[str]` field
+- **FEAT-007:** Agent uses single `SPECIALIST_SYSTEM_PROMPT` for all languages (removed `_NL` and `_EN` variants)
+- **FEAT-007:** Removed `language` parameter from `run_specialist_query()` and `run_specialist_query_stream()` functions
 
 ### Added - FEAT-004 Planning Complete: Product Catalog Integration (2025-10-31)
 - **FEAT-004: Product Catalog Integration - Planning Documentation Complete**

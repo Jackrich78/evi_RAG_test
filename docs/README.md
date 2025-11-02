@@ -1,6 +1,6 @@
 # Documentation Index
 
-*Last updated: 2025-11-01 12:00*
+*Last updated: 2025-11-01 19:50*
 
 ## Overview
 
@@ -38,6 +38,24 @@ This documentation index provides a comprehensive map of all project documentati
 - [Implementation Guide](features/FEAT-003_query-retrieval/implementation-guide.md)
 - [Testing Guide](features/FEAT-003_query-retrieval/TESTING_GUIDE.md)
 
+#### [FEAT-007: OpenWebUI Integration](features/FEAT-007_openwebui-integration/) ⭐ NEW
+**Status:** Implemented with POST-MVP Fixes
+**Completed:** 2025-11-01
+**Documents:**
+- [Product Requirements](features/FEAT-007_openwebui-integration/prd.md)
+- [Research Findings](features/FEAT-007_openwebui-integration/research.md)
+- [Architecture Decision](features/FEAT-007_openwebui-integration/architecture.md)
+- [Acceptance Criteria](features/FEAT-007_openwebui-integration/acceptance.md)
+- [Testing Strategy](features/FEAT-007_openwebui-integration/testing.md)
+- [Manual Test Guide](features/FEAT-007_openwebui-integration/manual-test.md)
+- [Post-MVP Fixes](features/FEAT-007_openwebui-integration/post-mvp.md) - **Critical bug fixes**
+
+**Recent Changes:**
+- Fixed streaming TransferEncodingError with SSE headers and error handling
+- Implemented clickable citation URLs with markdown link formatting
+- Added language auto-detection (English/Dutch) with single prompt
+- All three POST-MVP issues resolved and tested
+
 ### In Progress
 
 #### [FEAT-010: SSE Streaming](features/FEAT-010_streaming/) ⭐ RECENTLY UPDATED
@@ -72,16 +90,6 @@ This documentation index provides a comprehensive map of all project documentati
 - [Testing Strategy](features/FEAT-004_product-catalog/testing.md)
 - [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md)
 
-#### [FEAT-007: OpenWebUI Integration](features/FEAT-007_openwebui-integration/)
-**Status:** Planning Complete - Ready for Build
-**Planned:** 2025-10-31
-**Documents:**
-- [Product Requirements](features/FEAT-007_openwebui-integration/prd.md)
-- [Research Findings](features/FEAT-007_openwebui-integration/research.md)
-- [Architecture Decision](features/FEAT-007_openwebui-integration/architecture.md)
-- [Acceptance Criteria](features/FEAT-007_openwebui-integration/acceptance.md)
-- [Testing Strategy](features/FEAT-007_openwebui-integration/testing.md)
-- [Manual Test Guide](features/FEAT-007_openwebui-integration/manual-test.md)
 
 ### Exploring (PRD Only)
 

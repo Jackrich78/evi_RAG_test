@@ -1,9 +1,10 @@
 # FEAT-007 Post-MVP: Production Issues & Fixes
 
-**Status:** In Progress
+**Status:** ✅ RESOLVED - All Issues Fixed
 **Date Discovered:** 2025-11-01
+**Date Resolved:** 2025-11-02
 **Severity:** High (streaming) + Medium (citations, language)
-**Impact:** Core functionality degraded in production OpenWebUI deployment
+**Impact:** Core functionality degraded in production OpenWebUI deployment → Now fully functional
 **Related Docs:**
 - [PRD](./prd.md)
 - [Architecture](./architecture.md)
@@ -12,17 +13,35 @@
 
 ---
 
-## Quick Reference
+## Resolution Summary
 
-| Issue | Severity | Files to Modify | Est. Time | Risk |
-|-------|----------|----------------|-----------|------|
-| Streaming TransferEncodingError | CRITICAL | `agent/api.py` | 30 min | Low |
-| Citations Not Clickable | HIGH | 6 files + 2 SQL | 90 min | Medium |
-| Language Always Dutch | MEDIUM | `agent/specialist_agent.py`, `agent/api.py` | 15 min | Low |
+**All 3 issues have been successfully resolved:**
 
-**Total Implementation Time:** ~2.5 hours
-**Testing Time:** ~30 minutes
-**Total:** ~3 hours
+✅ **Issue 1: Streaming TransferEncodingError** - FIXED
+- Added proper SSE headers (`Cache-Control`, `Connection`, `X-Accel-Buffering`)
+- Implemented try/except/finally error handling in generator
+- Streaming now works reliably with guaranteed `[DONE]` marker
+
+✅ **Issue 2: Citations Not Clickable** - FIXED
+- Updated SQL functions to extract `source_url` from `documents.metadata`
+- Modified Citation model: `source` → `url: Optional[str]`
+- Updated agent prompt to generate markdown links `[Title](url)`
+- Citations now render as blue clickable links in OpenWebUI
+
+✅ **Issue 3: Language Always Dutch** - FIXED
+- Replaced two language-specific prompts with single language-agnostic prompt
+- LLM now auto-detects user's language and responds accordingly
+- Works for both Dutch and English queries
+
+**Implementation Time:** ~3 hours (as estimated)
+
+## Quick Reference (Original Issues)
+
+| Issue | Severity | Files Modified | Status |
+|-------|----------|----------------|--------|
+| Streaming TransferEncodingError | CRITICAL | `agent/api.py` | ✅ FIXED |
+| Citations Not Clickable | HIGH | 6 files + 2 SQL | ✅ FIXED |
+| Language Always Dutch | MEDIUM | `agent/specialist_agent.py`, `agent/api.py` | ✅ FIXED |
 
 ---
 

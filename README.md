@@ -116,7 +116,191 @@ User Query → Research Agent → [Vector Search + Graph Traversal + Product Loo
 
 ---
 
-## 🚀 Running the MVP (After FEAT-003 Implementation)
+## 🌐 Using OpenWebUI (Web Interface)
+
+**OpenWebUI is the primary interface for the EVI 360 Specialist Agent** - it provides a ChatGPT-like web interface with conversation history, streaming responses, and clickable citations.
+
+### Quick Start: OpenWebUI
+
+**Prerequisites:** Initial setup complete (see [Installation](#installation) above)
+
+#### 1. Start All Services
+
+```bash
+# Start Docker containers (PostgreSQL, Neo4j, OpenWebUI)
+docker-compose up -d
+
+# Verify all containers are healthy (should take 10-30 seconds)
+docker-compose ps
+# Expected: postgres (healthy), neo4j (healthy), openwebui (Up)
+```
+
+#### 2. Activate Python Environment
+
+```bash
+# On macOS/Linux
+source venv/bin/activate
+
+# On Windows
+venv\Scripts\activate
+```
+
+#### 3. Start the API Server
+
+```bash
+# Start FastAPI server on port 8058 (OpenWebUI expects it here)
+python3 -m uvicorn agent.api:app --host 0.0.0.0 --port 8058 --reload
+```
+
+**Expected Output:**
+```
+INFO:     Uvicorn running on http://0.0.0.0:8058 (Press CTRL+C to quit)
+INFO:     Started server process [12346]
+INFO:     Application startup complete.
+INFO:     Database initialized
+INFO:     Agentic RAG API startup complete
+```
+
+#### 4. Open OpenWebUI
+
+Open your web browser and navigate to:
+```
+http://localhost:3001
+```
+
+**You should see the "EVI 360 Specialist" chat interface.**
+
+#### 5. Start Chatting
+
+The system supports both **Dutch** and **English** queries automatically:
+
+**Dutch Examples:**
+- "Wat zijn de vereisten voor werken op hoogte?"
+- "Hoe voorkom ik rugklachten bij werknemers?"
+- "Welke maatregelen zijn nodig voor lawaai op de werkplek?"
+
+**English Examples:**
+- "What are the requirements for working at height?"
+- "How do I prevent back injuries in employees?"
+- "What measures are needed for workplace noise?"
+
+**Features:**
+- ✅ Real-time streaming responses
+- ✅ Clickable citations (when guidelines have URLs)
+- ✅ Automatic language detection (Dutch/English)
+- ✅ Conversation history saved in OpenWebUI
+- ✅ Markdown formatting with blockquotes for sources
+
+### Shutdown
+
+```bash
+# Stop API server (in terminal where uvicorn is running)
+Ctrl+C
+
+# Stop Docker containers (keeps all data)
+docker-compose down
+
+# OR: Keep containers running in background (no action needed)
+# Data persists in Docker volumes either way
+```
+
+**Note:** Docker volumes persist your data even when containers are stopped. To completely remove data, use `docker-compose down -v` (⚠️ WARNING: deletes everything).
+
+### Troubleshooting
+
+**Problem:** OpenWebUI shows "Connection Error" or "API not responding"
+
+**Solution:**
+1. Verify API server is running: `curl http://localhost:8058/health`
+2. Check Docker containers: `docker-compose ps` (all should be healthy/Up)
+3. Check API logs in terminal where uvicorn is running
+
+**Problem:** Citations are not clickable
+
+**Solution:**
+- This is expected if documents don't have `source_url` in their metadata
+- Re-ingest documents with URLs to enable clickable citations
+- See [Notion Integration docs](docs/features/FEAT-002_notion-integration/) for ingestion
+
+**Problem:** Port 3001 already in use
+
+**Solution:**
+- Change OpenWebUI port in `docker-compose.yml`: `"3002:8080"` instead of `"3001:8080"`
+- Restart: `docker-compose down && docker-compose up -d`
+- Access at new port: http://localhost:3002
+
+---
+
+## 🎨 Customizing the Agent Prompt
+
+The agent's behavior is controlled by a system prompt that defines its personality, response format, and citation requirements.
+
+### Prompt Location
+
+**File:** `agent/specialist_agent.py`
+**Variable:** `SPECIALIST_SYSTEM_PROMPT` (lines 34-89)
+
+### How to Modify
+
+1. **Open the file:**
+   ```bash
+   # With your preferred editor
+   nano agent/specialist_agent.py
+   # or
+   code agent/specialist_agent.py
+   ```
+
+2. **Find the prompt:**
+   ```python
+   # Look for this line (around line 34)
+   SPECIALIST_SYSTEM_PROMPT = """You are a workplace safety specialist for EVI 360.
+   ```
+
+3. **Edit the prompt:** Modify the text within the triple quotes to change:
+   - Agent personality ("informal, friendly tone" → "professional, formal tone")
+   - Response structure (add/remove sections)
+   - Citation requirements (minimum sources, formatting)
+   - Language instructions (Dutch/English behavior)
+
+4. **Restart the API server:**
+   ```bash
+   # Stop current server (Ctrl+C)
+   # Start again (changes auto-reload with --reload flag)
+   python3 -m uvicorn agent.api:app --host 0.0.0.0 --port 8058 --reload
+   ```
+
+   **Note:** With `--reload` flag, you can edit the prompt and it will auto-reload. Just save the file and the next query will use the new prompt.
+
+### Example Modifications
+
+**Change tone to formal:**
+```python
+# Find this line:
+- Use informal, friendly tone
+
+# Change to:
+- Use professional, formal tone appropriate for safety compliance
+```
+
+**Require more citations:**
+```python
+# Find this line:
+- Always cite at least 2 sources (NVAB, STECR, UWV, Arboportaal, ARBO)
+
+# Change to:
+- Always cite at least 3-4 sources (NVAB, STECR, UWV, Arboportaal, ARBO)
+```
+
+**Add a disclaimer:**
+```python
+# At the end of the prompt, before the closing triple quotes:
+**Disclaimer:** Always consult a certified safety professional for workplace-specific advice.
+"""
+```
+
+---
+
+## 🖥️ Running the MVP (CLI Alternative)
 
 ### Start the API Server
 
@@ -203,8 +387,12 @@ curl http://localhost:8058/health
 
 ## 📊 Current Status
 
-**Phase 1-2**: ✅ Complete (Infrastructure + Notion Integration)
-**Phase 3A (MVP)**: 📋 Ready to Implement (Specialist Agent)
+**Phase 1**: ✅ Complete (Core Infrastructure)
+**Phase 2**: ✅ Complete (Notion Integration)
+**Phase 3A**: ✅ Complete (Specialist Agent MVP)
+**Phase 3E**: ✅ Complete (OpenWebUI Integration)
+
+**Overall Progress:** 67% (4 of 9 phases complete)
 
 See [docs/IMPLEMENTATION_PROGRESS.md](docs/IMPLEMENTATION_PROGRESS.md) for detailed progress tracking.
 
@@ -214,7 +402,9 @@ See [docs/IMPLEMENTATION_PROGRESS.md](docs/IMPLEMENTATION_PROGRESS.md) for detai
 - ✅ PostgreSQL 17 + pgvector 0.8.1 (local, unlimited storage)
 - ✅ Neo4j 5.26.1 (empty, for future knowledge graph)
 - ✅ Docker Compose configuration with health checks
-- ✅ FastAPI server and CLI ready
+- ✅ FastAPI server with OpenAI-compatible API
+- ✅ OpenWebUI web interface (port 3001)
+- ✅ CLI client with streaming support
 - ✅ Search tools (vector, hybrid) implemented
 
 **Data**:
@@ -227,25 +417,30 @@ See [docs/IMPLEMENTATION_PROGRESS.md](docs/IMPLEMENTATION_PROGRESS.md) for detai
 - ✅ SQL functions: hybrid_search (Dutch), match_chunks, search_guidelines_by_tier
 - ✅ Indexes: ivfflat on embeddings, GIN on metadata
 
-**Code Infrastructure**:
-- ✅ 8 Pydantic models with validation
+**Agent & API**:
+- ✅ Specialist Agent with language auto-detection (Dutch/English)
+- ✅ Pydantic AI framework with tools and validators
+- ✅ OpenAI-compatible `/v1/chat/completions` endpoint
+- ✅ Streaming responses with Server-Sent Events (SSE)
+- ✅ Clickable citations with source URLs
 - ✅ Search tools (`agent/tools.py`) with hybrid search
 - ✅ Database utils (`agent/db_utils.py`) with connection pooling
-- ✅ FastAPI server (`agent/api.py`) with lifecycle management
-- ✅ CLI client (`cli.py`) with streaming support
+- ✅ 8 Pydantic models with validation
 
 ### What's Next ⏳
 
-**Phase 3A: Specialist Agent MVP** (5-8 hours):
-1. Create specialist agent with Dutch system prompt
-2. Integrate with existing API server
-3. Test with 10 Dutch queries
-4. Validate Dutch quality and citation accuracy
+**Ready for Implementation:**
 
-**Documentation Ready:**
-- [FEAT-003 PRD](docs/features/FEAT-003_query-retrieval/prd.md)
-- [FEAT-003 Architecture](docs/features/FEAT-003_query-retrieval/architecture.md)
-- [FEAT-003 Implementation Guide](docs/features/FEAT-003_query-retrieval/implementation-guide.md)
+**Phase 3B: Product Catalog** ([FEAT-004](docs/features/FEAT-004_product-catalog/prd.md))
+- Scrape ~100 EVI 360 products from website
+- AI-assisted categorization with compliance tags
+- Product recommendation integration with specialist agent
+
+**Future Phases:**
+- **Phase 3C:** Multi-Agent System (if performance issues emerge)
+- **Phase 3D:** Knowledge Graph Enhancement (if relationship queries needed)
+- **Phase 3F:** Advanced Memory & Session Management
+- **Phase 3G:** Tier-Aware Search Strategy
 
 ---
 
@@ -256,7 +451,8 @@ See [docs/IMPLEMENTATION_PROGRESS.md](docs/IMPLEMENTATION_PROGRESS.md) for detai
 - **Database**: PostgreSQL 17 + pgvector 0.8.1
 - **Graph DB**: Neo4j 5.26.1 + APOC
 - **Agent Framework**: Pydantic AI
-- **API**: FastAPI (to be implemented)
+- **API**: FastAPI with OpenAI-compatible endpoints
+- **Web Interface**: OpenWebUI (ChatGPT-like UI)
 - **Language**: Python 3.11+
 
 ### Key Libraries
