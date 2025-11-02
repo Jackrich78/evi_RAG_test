@@ -282,4 +282,50 @@ This file tracks all acceptance criteria across all features in the project. Eac
 
 ---
 
-**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) + 23 (FEAT-010) + 34 (FEAT-004) = 129
+## FEAT-008: Advanced Memory & Session Management
+
+### User Story Criteria
+
+- **AC-FEAT-008-001:** Multi-Turn Context Retention - Given a user has asked "Wat zijn de vereisten voor valbeveiliging?" in OpenWebUI, when the user asks a follow-up question "Welke producten heb je daarvoor?", then the agent references the previous context (valbeveiliging) in its response, and both messages are stored in the same session in PostgreSQL, and the response includes relevant products for fall protection
+- **AC-FEAT-008-002:** Session Persistence Across Requests - Given a user has an active session with 5 previous messages, when the user sends a new message, then the agent loads the last 10 messages from the session as context, and the new message is stored in the same session, and the session's last_accessed timestamp is updated
+- **AC-FEAT-008-003:** Session ID Header Handling - Given OpenWebUI sends a request with X-Session-ID header containing a valid UUID, when the /v1/chat/completions endpoint processes the request, then the server retrieves the existing session from PostgreSQL, and the response includes the same X-Session-ID header value, and the context from that session is used in the agent response
+- **AC-FEAT-008-004:** New Session Per CLI Execution - Given a user runs cli.py and asks 3 questions, when the user exits and runs cli.py again, then a new session is created in PostgreSQL, and the new session has a different UUID than the previous session, and no context from the previous CLI run is available
+- **AC-FEAT-008-005:** CLI Session Auto-Creation - Given cli.py starts without an X-Session-ID header, when the first message is sent to /v1/chat/completions, then the server creates a new session automatically, and returns the session UUID in the X-Session-ID response header, and cli.py uses this session ID for subsequent messages in the same run
+- **AC-FEAT-008-006:** Session Persistence After Container Restart - Given a session exists with 5 messages in PostgreSQL, when docker-compose down is executed followed by docker-compose up, then all 5 messages are still present in the database, and the session can be resumed with full context, and new messages can be added to the session
+- **AC-FEAT-008-007:** No Data Loss on Restart - Given a user is actively using OpenWebUI with an ongoing conversation, when the container restarts (docker-compose restart), then the user can continue the conversation from where they left off, and all previous messages are available as context, and no messages are lost or corrupted
+
+### Edge Cases
+
+- **AC-FEAT-008-101:** Invalid UUID Format in X-Session-ID Header - Given a client sends X-Session-ID header with value "not-a-uuid", when the /v1/chat/completions endpoint validates the header, then the server returns HTTP 400 Bad Request, and the error message states "Invalid session ID format: must be valid UUID", and the response follows OpenAI error format
+- **AC-FEAT-008-102:** Missing X-Session-ID Header - Given a client sends a request without X-Session-ID header, when the /v1/chat/completions endpoint processes the request, then the server creates a new session automatically, and returns the new session UUID in X-Session-ID response header, and the message is stored in the new session
+- **AC-FEAT-008-103:** Concurrent Requests with Same Session ID - Given two requests are sent simultaneously with the same X-Session-ID, when both requests attempt to add messages to the session, then PostgreSQL handles the concurrent writes safely, and both messages are stored in the session, and no data corruption or race conditions occur, and last_accessed timestamp reflects the latest request
+- **AC-FEAT-008-104:** Session with 100+ Messages - Given a session has 150 messages stored in PostgreSQL, when the agent loads context for a new message, then only the last 10 messages are retrieved (LIMIT 10), and context retrieval completes in <50ms, and the agent response uses only those 10 messages as context
+- **AC-FEAT-008-105:** Empty Session (Zero Messages) - Given a newly created session has 0 messages, when the first message is sent to the session, then the agent processes the message without errors, and returns an empty context (no previous messages), and the response is based only on the current query
+- **AC-FEAT-008-106:** Non-Existent Session ID - Given a client sends X-Session-ID header with a valid UUID that doesn't exist in database, when the /v1/chat/completions endpoint tries to retrieve the session, then the server returns HTTP 404 Not Found, and the error message states "Session not found: {session_id}", and suggests creating a new session by omitting the header
+- **AC-FEAT-008-107:** SQL Injection Attempt via LIMIT Parameter - Given get_session_messages() is called with malicious limit value "10; DROP TABLE messages;", when the database query is executed, then the query uses parameterized query (no f-string interpolation), and no SQL injection occurs, and the malicious input is treated as invalid parameter
+- **AC-FEAT-008-108:** Message Order Correctness - Given a session has messages with timestamps: t1, t2, t3, t4, t5 (oldest to newest), when get_session_messages(session_id, limit=3) is called, then messages returned are [t3, t4, t5] in chronological order (oldest first), and the query uses ORDER BY created_at DESC with result reversal, and messages are passed to PydanticAI in correct order for context
+
+### Non-Functional Requirements
+
+- **AC-FEAT-008-201:** Context Retrieval Performance - Given a session with 50 messages, when get_session_messages(session_id, limit=10) is executed, then the query completes in less than 50 milliseconds, and database connection pool handles 20 concurrent queries, and no query timeout errors occur
+- **AC-FEAT-008-202:** Total Query Time Budget - Given a user sends a message to /v1/chat/completions, when the request includes context loading, agent processing, and message storage, then the total time from request to response is less than 5 seconds, and context loading takes <50ms, and agent processing + RAG takes <4s, and message storage takes <100ms
+- **AC-FEAT-008-203:** Zero Data Loss on Container Restart - Given 100 sessions with 1000 total messages exist in PostgreSQL, when docker-compose down and docker-compose up are executed, then all 100 sessions are still present, and all 1000 messages are still present, and SELECT COUNT(*) FROM sessions and messages returns correct counts
+- **AC-FEAT-008-204:** Token Limit Awareness (Not Enforced in v1) - Given a session has 10 messages with combined context of 6K tokens, when a new 2K token query is added, then the system is aware total is 8K tokens (context + query), and no enforcement is applied in FEAT-008 (future feature), and PydanticAI handles token limits internally
+- **AC-FEAT-008-205:** Session Cleanup Automation - Given a session has last_accessed timestamp of 31 days ago, when the automatic cleanup job runs (pg_cron or trigger), then the session is deleted from the sessions table, and all associated messages are deleted via CASCADE, and no orphaned messages remain in the database
+- **AC-FEAT-008-206:** Concurrent User Scalability - Given 20 users are actively sending messages simultaneously, when each user has their own session, then all 20 sessions can retrieve context in <50ms, and database connection pool (max_size=20) handles the load, and no connection pool exhaustion errors occur
+- **AC-FEAT-008-207:** Database Schema Integrity - Given the sessions table has last_accessed column added, when a new message is added with add_message(), then the last_accessed column is updated to NOW(), and the column has type TIMESTAMP WITH TIME ZONE, and the column is indexed for cleanup query performance
+
+### Security Requirements
+
+- **AC-FEAT-008-301:** SQL Injection Prevention - Given any function that accepts user input for database queries, when the query is executed (especially get_session_messages with LIMIT), then parameterized queries are used (no f-string interpolation), and all user inputs are sanitized, and SQL injection attempts are prevented
+- **AC-FEAT-008-302:** Session ID Validation - Given a client sends X-Session-ID header, when the server validates the header value, then only valid UUID v4 format is accepted, and any invalid format returns 400 error, and no arbitrary strings can be used as session IDs
+
+### Testing Requirements
+
+- **AC-FEAT-008-401:** Unit Test Coverage - Given session management functions (create_session, add_message, get_session_messages), when unit tests are executed, then code coverage is at least 90%, and all edge cases have dedicated test cases, and all error paths are tested
+- **AC-FEAT-008-402:** Integration Test Coverage - Given the full session lifecycle (create → add messages → retrieve context), when integration tests are executed, then end-to-end flows are validated, and database interactions are tested with real PostgreSQL, and container restart persistence is verified
+- **AC-FEAT-008-403:** Manual Testing Completion - Given the manual testing guide in manual-test.md, when a tester follows all test scenarios, then all scenarios pass successfully, and screenshots/evidence are captured, and any issues are documented and resolved
+
+---
+
+**Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) + 23 (FEAT-010) + 34 (FEAT-004) + 28 (FEAT-008) = 157

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **FEAT-008: Advanced Memory & Session Management** - Planning documentation complete (2025-11-02)
+  - X-Session-ID header support for persistent sessions across requests
+  - Multi-turn conversation context (last 10 messages with <50ms retrieval)
+  - Automatic session cleanup after 30 days of inactivity
+  - Container restart persistence with zero data loss
+  - SQL injection fix for get_session_messages() LIMIT parameter
+  - 28 acceptance criteria, 43 test stubs, comprehensive manual testing guide
+  - Ready for Test-Driven Implementation (Phase 2)
+
 ## [2025-11-02]
 
 ### Fixed - FEAT-007 POST-MVP Issues RESOLVED

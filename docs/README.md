@@ -1,6 +1,6 @@
 # Documentation Index
 
-*Last updated: 2025-11-01 19:50*
+*Last updated: 2025-11-02*
 
 ## Overview
 
@@ -90,6 +90,25 @@ This documentation index provides a comprehensive map of all project documentati
 - [Testing Strategy](features/FEAT-004_product-catalog/testing.md)
 - [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md)
 
+#### [FEAT-008: Advanced Memory & Session Management](features/FEAT-008_advanced-memory/) ⭐ NEW
+**Status:** Ready for Implementation
+**Completed:** 2025-11-02
+**Documents:**
+- [Product Requirements](features/FEAT-008_advanced-memory/prd.md)
+- [PostgreSQL Optimization Research](features/FEAT-008_advanced-memory/postgres-optimization.md)
+- [Architecture Decision](features/FEAT-008_advanced-memory/architecture.md) - X-Session-ID header, hybrid session management
+- [Acceptance Criteria](features/FEAT-008_advanced-memory/acceptance.md) - 28 criteria (7 stories + 8 edge cases + 13 requirements)
+- [Testing Strategy](features/FEAT-008_advanced-memory/testing.md) - 43 test stubs, 90% unit coverage target
+- [Manual Testing Guide](features/FEAT-008_advanced-memory/manual-test.md) - Container restart, multi-turn conversations
+
+**Key Features:**
+- Multi-turn conversation context (last 10 messages)
+- X-Session-ID header support for OpenWebUI
+- Automatic session cleanup after 30 days
+- Container restart persistence with zero data loss
+- SQL injection fix in get_session_messages()
+
+**Test Coverage:** 43 test stubs (26 unit + 10 integration + 7 performance + 8 security)
 
 ### Exploring (PRD Only)
 
