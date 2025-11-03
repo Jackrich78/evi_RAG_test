@@ -1,55 +1,72 @@
-# Research Findings: FEAT-004 Product Catalog Ingestion
+# Research Findings: FEAT-004 Product Catalog with Interventie Wijzer Integration
 
 **Feature ID:** FEAT-004
-**Research Date:** 2025-10-31
+**Research Date:** 2025-11-03 (Updated to align with PRD v3.0)
 **Researcher:** Explorer + Plan Agents
+**Status:** Aligned with PRD v3.0 - Portal Scraping + CSV Enrichment
+
+---
 
 ## Research Questions
 
-*Questions from PRD exploration that this research addresses:*
+*Questions addressed based on PRD v3.0 requirements:*
 
-1. What is the best data source for products: website scraping vs. Notion database?
+1. What web scraping technology should be used for portal.evi360.nl?
 2. Should products be stored in the products table or chunks table?
 3. Does the specialist agent already support product recommendations?
 4. What existing infrastructure can be reused?
-5. Should we implement AI categorization or use existing Notion fields?
+5. How should CSV problem mappings be integrated with portal products?
+6. What is the optimal embedding strategy for products?
+
+---
+
+## Executive Summary
+
+**PRD v3.0 Decision:** Use **portal.evi360.nl web scraping** as primary data source, enriched with **Interventie Wijzer CSV** for problem-to-product mappings. This approach provides:
+
+- ✅ **Canonical URLs** from portal.evi360.nl (source of truth)
+- ✅ **Current pricing** from live portal pages
+- ✅ **Problem context** from CSV enrichment
+- ✅ **No Notion dependency** (simplified architecture)
+
+**Key Change from Earlier Research:** Original research recommended Notion database, but PRD v3.0 shifted to portal scraping for better URL accuracy and pricing data.
+
+---
 
 ## Findings
 
-### Topic 1: Data Source Selection - Notion vs. Website Scraping
+### Topic 1: Web Scraping Technology - Crawl4AI vs. BeautifulSoup
 
-**Summary:** Notion database is significantly faster and more reliable than building a web scraper from scratch. Existing Notion integration from FEAT-002 can be reused with minimal modifications.
+**Summary:** Crawl4AI is the recommended technology for scraping portal.evi360.nl due to JavaScript rendering support and intelligent content extraction.
 
 **Details:**
-- **Notion Integration (RECOMMENDED):**
-  - ✅ Existing client: `ingestion/notion_to_markdown.py` (492 lines, battle-tested in FEAT-002)
-  - ✅ Config ready: `config/notion_config.py` with environment variable loading
-  - ✅ Authentication working: FEAT-002 successfully fetched 87 guidelines with 100% success rate
-  - ✅ Simple query: Just add new database ID to `.env`
-  - ✅ Estimated effort: **2-3 hours** (database ID + field mapping + insert to products table)
 
-- **Website Scraping (NOT RECOMMENDED for MVP):**
-  - ❌ No scraper exists in codebase
-  - ❌ Need to build: HTML parsing, pagination, rate limiting, error handling
-  - ❌ Portal.evi360.nl structure unknown (requires inspection)
-  - ❌ Potential authentication required (login wall?)
-  - ❌ Estimated effort: **8-12 hours** (write scraper from scratch)
+**Crawl4AI (RECOMMENDED):**
+- ✅ **JavaScript rendering:** Handles modern web apps with dynamic content
+- ✅ **Intelligent extraction:** Can ignore header/footer automatically
+- ✅ **Async support:** Compatible with existing async codebase (asyncpg, httpx)
+- ✅ **Click simulation:** Can navigate from listing → individual product pages
+- ✅ **Error handling:** Built-in retry logic and timeout management
+- ✅ **Estimated effort:** 4 hours (scraping strategy + extraction logic)
 
-**Source:** Codebase analysis
-**Files Reviewed:**
-- `ingestion/notion_to_markdown.py` (lines 45, 104-162)
-- FEAT-002 validation report (referenced in docs/IMPLEMENTATION_PROGRESS.md line 75)
-**Decision:** Use Notion database
+**BeautifulSoup (Alternative):**
+- ⚠️ **Static HTML only:** Fails if portal uses JavaScript rendering
+- ⚠️ **Manual navigation:** Requires custom logic for clicking into pages
+- ⚠️ **No retry logic:** Must build error handling from scratch
+- ⚠️ **Estimated effort:** 6-8 hours (build all infrastructure)
+
+**Source:** PRD v3.0 Technical Architecture (lines 206-273)
+**Decision:** Use Crawl4AI for portal scraping
 
 ---
 
 ### Topic 2: Storage Architecture - Products Table vs. Chunks Table
 
-**Summary:** User initially requested "store as individual chunk" but existing architecture has a dedicated products table with product-specific fields. Products table is the correct choice for clean separation and proper data modeling.
+**Summary:** Existing architecture has a dedicated products table with product-specific fields. Products table is the correct choice for clean separation and proper data modeling.
 
 **Details:**
 
-**Existing Products Table Schema** (`sql/evi_schema_additions.sql` lines 24-54):
+**Existing Products Table Schema** (`sql/evi_schema_additions.sql`):
 ```sql
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -68,24 +85,28 @@ CREATE TABLE products (
 );
 ```
 
+**PRD v3.0 Schema Updates Required:**
+- ✅ Add `price TEXT` field (from portal scraping)
+- ✅ Change `source` default from `'evi360_website'` to `'portal'`
+- ❌ Remove `subcategory TEXT` (not in scope)
+- ❌ Remove `compliance_tags TEXT[]` (not in scope)
+- ✅ Use `metadata JSONB` for `problem_mappings` array and `csv_category`
+
 **Comparison Analysis:**
 
 | Approach | Pros | Cons | Recommendation |
 |----------|------|------|----------------|
-| **Products table** | • Dedicated schema with product-specific fields (url, category, compliance_tags)<br>• Separate search function `search_products()`<br>• Clean separation of concerns<br>• Already built and indexed | • Requires separate ingestion code<br>• Not reusable with existing chunker | ✅ **RECOMMENDED** |
-| **Chunks table** | • Reuses existing ingestion pipeline<br>• Simple: treat products as documents | • Loses product-specific fields (url, category, tags)<br>• Mixes guidelines and products<br>• No clean way to filter "only products"<br>• Cannot use `search_products()` SQL function | ❌ **NOT RECOMMENDED** |
+| **Products table** | • Dedicated schema with product-specific fields (url, price, category)<br>• Separate search function `search_products()`<br>• Clean separation of concerns<br>• Already built and indexed | • Requires separate ingestion code<br>• Not reusable with existing chunker | ✅ **RECOMMENDED** (PRD v3.0) |
+| **Chunks table** | • Reuses existing ingestion pipeline<br>• Simple: treat products as documents | • Loses product-specific fields (url, price, category)<br>• Mixes guidelines and products<br>• No clean way to filter "only products"<br>• Cannot use `search_products()` SQL function | ❌ **NOT RECOMMENDED** |
 
-**Source:** Codebase analysis + architectural best practices
-**Files Reviewed:**
-- `sql/evi_schema_additions.sql` (lines 20-54, 210-245)
-- `agent/models.py` (lines 308-410)
-**Decision:** Use dedicated products table
+**Source:** Codebase analysis + PRD v3.0 Database Schema (lines 394-444)
+**Decision:** Use dedicated products table with schema updates
 
 ---
 
 ### Topic 3: Specialist Agent Current State - Product Support
 
-**Summary:** Specialist agent explicitly has products DISABLED in MVP. Products are marked as "not in this version" in both Dutch and English prompts.
+**Summary:** Specialist agent explicitly has products DISABLED. Products are marked as "not in this version" in both Dutch and English prompts.
 
 **Details:**
 
@@ -93,495 +114,457 @@ CREATE TABLE products (
 - **Line 44 (Dutch prompt):** `"Geen producten aanbevelen (niet in deze versie)"`
 - **Line 74 (English prompt):** `"Do not recommend products (not in this version)"`
 
-**Current Workflow** (lines 112-173):
+**Current Workflow:**
 ```
 Query → search_guidelines() tool → hybrid_search (guidelines only) → Dutch response with citations
 ```
 
-**Product Tools:**
+**Product Tools Status:**
 - ❌ No `search_products()` tool registered with agent
 - ❌ No product retrieval in agent workflow
-- ✅ Models exist but unused: `ProductRecommendation` (lines 357-379), `ProductSearchResult` (lines 382-391)
+- ✅ Models exist but unused: `ProductRecommendation`, `ProductSearchResult`
 
-**FEAT-003 PRD Evidence:**
-- **Line 137:** "No product recommendations (products table empty)" in "Response Format" section
-- **Line 143:** "❌ Product recommendations (FEAT-004) - products table empty" in "Out of Scope"
+**PRD v3.0 Requirements (Phase 5):**
+- ✅ Remove "Geen producten aanbevelen" restriction from prompts
+- ✅ Add `search_products()` tool to agent toolkit
+- ✅ Add system prompt instruction to call tool when contextually relevant
+- ✅ Format products in Dutch markdown with URLs and pricing
 
-**Source:** Codebase analysis
-**Files Reviewed:**
-- `agent/specialist_agent.py` (lines 44, 74, 112-173)
-- `docs/features/FEAT-003_query-retrieval/prd.md` (lines 137, 143)
-**Decision:** Need to enable products by removing restriction and adding tool
+**Source:** Code review + PRD v3.0 Phase 5 (lines 723-762)
+**Decision:** Enable products by removing restriction and adding tool
 
 ---
 
 ### Topic 4: Existing Infrastructure Assessment
 
-**Summary:** Comprehensive infrastructure already exists for products: database schema, SQL functions, Pydantic models, and Notion integration. Only missing: ingestion script and agent tool registration.
+**Summary:** Comprehensive infrastructure already exists for products: database schema, SQL functions, Pydantic models. Only missing: portal scraper, CSV parser, and agent tool registration.
 
 **Details:**
 
 **✅ Ready Infrastructure:**
+
 1. **Database Schema:**
-   - Products table created: `sql/evi_schema_additions.sql` lines 24-54
+   - Products table created: `sql/evi_schema_additions.sql`
    - Vector index configured: `idx_products_embedding` (IVFFLAT)
-   - Compliance tags index: GIN index on compliance_tags array
    - Metadata index: GIN index on JSONB metadata field
+   - **Needs:** Price field addition, compliance_tags removal
 
 2. **SQL Functions:**
-   - `search_products()` function exists: `sql/evi_schema_additions.sql` lines 210-245
-   - Returns: product_id, name, description, url, category, similarity, compliance_tags, metadata
-   - Supports: vector similarity search + compliance tag filtering
+   - `search_products()` function exists (needs hybrid search update)
+   - Returns: product_id, name, description, url, category, similarity, metadata
+   - **Needs:** 70% vector + 30% Dutch text hybrid search update
 
 3. **Pydantic Models** (`agent/models.py`):
-   - `EVIProduct` (lines 308-348): Full product model with validation
-   - `ProductRecommendation` (lines 357-379): Recommendation with relevance scoring
-   - `ProductSearchResult` (lines 382-391): Database search result
+   - `EVIProduct`: Full product model with validation
+   - `ProductRecommendation`: Recommendation with relevance scoring
+   - `ProductSearchResult`: Database search result
+   - **Needs:** Remove `compliance_tags`, `subcategory`; add `price`
 
-4. **Notion Integration:**
-   - Client: `ingestion/notion_to_markdown.py` (492 lines, production-ready)
-   - Config: `config/notion_config.py`
-   - Authentication: NOTION_API_TOKEN configured in `.env`
+4. **Embedding Infrastructure:**
+   - `ingestion/embedder.py` ready for product embeddings
+   - OpenAI text-embedding-3-small (1536 dimensions)
+   - **Reusable:** No changes needed
 
-**❌ Missing Components:**
-1. Product ingestion script (`ingestion/ingest_products.py` - NEW FILE)
-2. Product search tool (`agent/tools.py` - ADD FUNCTION)
-3. Agent tool registration (`agent/specialist_agent.py` - MODIFY)
+**❌ Missing Components (To Build):**
 
-**Source:** Codebase analysis
-**Files Reviewed:**
-- `sql/evi_schema_additions.sql`
-- `agent/models.py`
-- `ingestion/notion_to_markdown.py`
-- `config/notion_config.py`
-**Decision:** Leverage existing infrastructure, build only missing pieces
+1. **Portal Scraper:**
+   - `ingestion/scrape_portal_products.py` (NEW FILE)
+   - Crawl4AI implementation for portal.evi360.nl
+   - Extract: name, description, price, URL, category
+
+2. **CSV Parser:**
+   - `ingestion/parse_interventie_csv.py` (NEW FILE)
+   - Parse `Intervention_matrix.csv` (33 rows)
+   - Fuzzy matching (fuzzywuzzy, ≥0.9 threshold)
+
+3. **Product Ingestion Orchestrator:**
+   - `ingestion/ingest_products.py` (NEW FILE)
+   - Combine portal + CSV data
+   - Generate embeddings (description + problems)
+   - Upsert to database
+
+4. **Agent Tool:**
+   - `search_products_tool()` in `agent/tools.py` (NEW FUNCTION)
+   - Hybrid search: 70% vector + 30% Dutch text
+   - Return top 3-5 products with URLs and pricing
+
+**Source:** Codebase analysis + PRD v3.0 Implementation Plan (lines 556-792)
+**Decision:** Build missing components, leverage existing infrastructure
 
 ---
 
-### Topic 5: Categorization Strategy - AI vs. Extract from Notion
+### Topic 5: CSV Integration Strategy - Fuzzy Matching Products
 
-**Summary:** Notion database already has "type" and "tags" fields. No AI categorization needed for MVP - extract existing fields directly.
+**Summary:** Interventie Wijzer CSV provides problem-to-product mappings. Use fuzzy matching to enrich portal products with problem context.
 
 **Details:**
 
-**User Clarification:**
-- "The notion DB has some simple type and tags for the products."
-- Notion database URL: https://www.notion.so/29dedda2a9a081409224e46bd48c5bc6
-- Database ID: 29dedda2a9a081409224e46bd48c5bc6
+**CSV Structure** (`Intervention_matrix.csv` - 33 rows):
 
-**Example Product** (`big_tech_docs/example_evi360_product_bedrijfsfysiotherapie.md`):
-```
-Bedrijfsfysiotherapie
-Offerte op maat
-Beschrijving
-Fysieke klachten en werk gaan vaak hand in hand...
-```
+| Column | Description | Usage |
+|--------|-------------|-------|
+| `Probleem` | Problem description in Dutch | Store in `metadata.problem_mappings` |
+| `Category` | Category label | Store in `metadata.csv_category` |
+| `Link interventie` | **IGNORE** (old URLs) | Not used |
+| `Soort interventie` | Product name | Fuzzy match to portal product names |
 
-**Data Mapping (Simple Extraction):**
+**Fuzzy Matching Strategy:**
+
 ```python
-# Notion → PostgreSQL products table
-products.name = notion_page["title"]
-products.description = notion_page["description"]
-products.category = notion_page["type"]  # Use Notion "type" field directly
-products.metadata = {"tags": notion_page["tags"]}  # Store tags in metadata JSONB
-products.url = f"https://portal.evi360.nl/products/{slug}"  # Construct or extract
-products.embedding = generate_embedding(description)  # OpenAI text-embedding-3-small
-products.source = "notion_database"
+from fuzzywuzzy import fuzz
+
+def fuzzy_match_products(csv_products, portal_products, threshold=0.9):
+    """
+    Match CSV products to portal products by name similarity.
+
+    Args:
+        csv_products: From parse_interventie_csv()
+        portal_products: From scrape_all_products()
+        threshold: Minimum similarity (0.9 = 90%)
+
+    Returns:
+        Enriched portal products with problem_mappings
+    """
+    for csv_prod in csv_products:
+        csv_name = normalize_product_name(csv_prod["product_name"])
+
+        for portal_prod in portal_products:
+            portal_name = normalize_product_name(portal_prod["name"])
+            score = fuzz.ratio(csv_name, portal_name) / 100.0
+
+            if score >= threshold:
+                # Enrich portal product with CSV data
+                portal_prod["metadata"]["problem_mappings"] = csv_prod["problems"]
+                portal_prod["metadata"]["csv_category"] = csv_prod["category"]
+                break
 ```
 
-**AI Categorization (DESCOPED):**
-- Original PRD proposed GPT-4 categorization: 3-4 hours effort
-- Now unnecessary: Notion already has categories
-- Can enhance later if needed
+**Many-to-One Relationship:**
+- Multiple problems can map to same product
+- Example: "Vroegconsult Arbeidsdeskundige" linked to 3 different problems
+- Aggregate all problems into single `problem_mappings` array
 
-**Source:** User clarification + example product file
-**Files Reviewed:**
-- `big_tech_docs/example_evi360_product_bedrijfsfysiotherapie.md`
-**Decision:** Extract "type" and "tags" from Notion (no AI needed)
+**PRD v3.0 Requirements:**
+- ✅ Parse 33 CSV rows into problem-product mappings
+- ✅ Ignore CSV URLs (old/irrelevant)
+- ✅ Use fuzzy matching (≥0.9 threshold)
+- ✅ Log unmatched products for manual review
+- ✅ Target: ≥80% match rate (27+ of 33 products)
+
+**Source:** PRD v3.0 Technical Architecture (lines 283-390)
+**Decision:** Fuzzy match CSV → portal products, enrich metadata
+
+---
+
+### Topic 6: Embedding Strategy - Description + Problems Concatenation
+
+**Summary:** Embed products as concatenation of description + problem mappings for richer semantic matching. No chunking - one embedding per product.
+
+**Details:**
+
+**Embedding Text Construction:**
+```python
+# For products WITH CSV enrichment
+embedding_text = f"{description}\n\n{'\n'.join(problem_mappings)}"
+
+# For products WITHOUT CSV enrichment
+embedding_text = description
+```
+
+**Example Embedding Text:**
+```
+Multidisciplinaire begeleiding door fysiotherapeut en psycholoog voor complexe burn-out gevallen.
+
+Mijn werknemer heeft burn-out klachten
+Het gaat slecht met mijn werknemer, hoe krijgt hij gericht advies?
+```
+
+**Rationale:**
+- ✅ **Richer semantics:** Problems provide query-like context
+- ✅ **Better matching:** Product descriptions + user problem phrasing
+- ✅ **No chunking needed:** Products are atomic units (~450 tokens avg)
+- ✅ **Efficient:** 1 embedding per product (not 3-5 chunks)
+
+**PRD v3.0 Specifications:**
+- **Model:** OpenAI text-embedding-3-small
+- **Dimensions:** 1536
+- **Chunking:** NONE (products are atomic)
+- **Storage:** 1 embedding in `products.embedding` vector(1536)
+
+**Source:** PRD v3.0 Data Models (lines 536-549)
+**Decision:** Embed description + problems, no chunking
+
+---
+
+### Topic 7: Hybrid Search Strategy - 70% Vector + 30% Dutch Text
+
+**Summary:** Use hybrid search combining vector similarity with Dutch full-text search for optimal recall and precision.
+
+**Details:**
+
+**Hybrid Search SQL Function:**
+```sql
+CREATE OR REPLACE FUNCTION search_products(
+    query_embedding vector(1536),
+    query_text TEXT,
+    match_limit INT DEFAULT 5
+)
+RETURNS TABLE (...) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        ...,
+        -- Hybrid similarity: 70% vector + 30% text search
+        (0.7 * (1 - (p.embedding <=> query_embedding)) +
+         0.3 * ts_rank(to_tsvector('dutch', p.description),
+                       plainto_tsquery('dutch', query_text))) AS similarity
+    FROM products p
+    ORDER BY similarity DESC
+    LIMIT match_limit;
+END;
+$$;
+```
+
+**Rationale:**
+- ✅ **Vector (70%):** Captures semantic similarity (burn-out ≈ overspanning)
+- ✅ **Text (30%):** Captures keyword matching (exact terms like "fysiotherapie")
+- ✅ **Dutch support:** `to_tsvector('dutch', ...)` handles Dutch stemming
+- ✅ **Balanced:** Avoids pure vector issues (low recall) and pure text issues (low precision)
+
+**PRD v3.0 Requirements:**
+- Hybrid search: 70% vector + 30% text (line 476)
+- Dutch full-text search configuration
+- Return top 3-5 products by similarity
+- Include price, URL, metadata in results
+
+**Source:** PRD v3.0 Database Schema (lines 449-485)
+**Decision:** Hybrid search with 70/30 split
 
 ---
 
 ## Recommendations
 
-### Primary Recommendation: Quick Notion Integration (7-10 hours)
+### Primary Recommendation: Portal Scraping + CSV Enrichment (14 hours)
 
-**Rationale:**
-1. **Reuse Existing Code:** Notion client already tested with 87 guidelines (100% success rate in FEAT-002)
-2. **No AI Complexity:** Categories exist in Notion database, no need for AI categorization
-3. **Clean Architecture:** Use dedicated products table as designed
-4. **Minimal Agent Changes:** Add one tool + update prompt + extend response model
-5. **Fast Time-to-Value:** Products operational in 1-2 days vs. 2-3 weeks for full scraping approach
+**Rationale (PRD v3.0):**
+1. **Canonical URLs:** Portal provides accurate, working URLs (source of truth)
+2. **Current pricing:** Scraped from live portal pages
+3. **Problem context:** CSV enrichment adds user-problem semantics
+4. **No Notion dependency:** Simplified architecture, fewer moving parts
+5. **Automated updates:** Re-scraping via `python3 -m ingestion.ingest_products --refresh`
+
+**Implementation Phases (PRD v3.0):**
+
+**Phase 1: Portal Scraping with Crawl4AI (4 hours)**
+- Scrape product listing from portal.evi360.nl/products
+- Click into each of ~60 product pages
+- Extract: name, description, price, category, canonical URL
+- Save to intermediate JSON file
+
+**Phase 2: CSV Parsing & Fuzzy Matching (2 hours)**
+- Parse Intervention_matrix.csv (33 rows)
+- Extract problem descriptions, categories, product names
+- Fuzzy match (≥0.9 threshold) CSV → portal products
+- Log unmatched products for manual review
+
+**Phase 3: Product Enrichment & Embedding (2.5 hours)**
+- Enrich portal products with CSV problem_mappings
+- Generate embeddings: description + problems
+- Update schema (add price, remove compliance_tags)
+- Upsert to products table
+
+**Phase 4: Hybrid Search Tool (2 hours)**
+- Update search_products() SQL function (70% vector + 30% text)
+- Create search_products_tool() in agent/tools.py
+- Test hybrid search with sample queries
+
+**Phase 5: Agent Integration (1.5 hours)**
+- Remove "Geen producten aanbevelen" restriction
+- Add search_products() tool to specialist agent
+- Update system prompt with product formatting guidelines
+
+**Phase 6: Testing & Validation (2 hours)**
+- Unit tests (18 tests from existing stubs)
+- Integration tests (6 tests)
+- Manual testing (10 test queries)
+
+**Total Time:** 14 hours (PRD v3.0 estimate)
 
 **Key Benefits:**
-- **60-70% faster** than building web scraper (3 hours vs. 8-12 hours for data ingestion)
-- **Reliable:** Notion API is stable, authenticated, and well-documented
-- **Maintainable:** Notion serves as single source of truth for products
-- **Extensible:** Can add web scraper later for automated updates if needed
-
-**Considerations:**
-- Products must be updated manually in Notion (acceptable: monthly update frequency)
-- Dependent on Notion API availability (acceptable: downtime only affects ingestion, not search)
-- URL construction required (Notion may not have portal.evi360.nl URLs stored)
-
----
-
-### Alternative Approaches Considered
-
-#### Alternative 1: Website Scraping with BeautifulSoup
-
-**Approach:** Build custom scraper for portal.evi360.nl/products
-- **Pros:**
-  - Automated updates possible
-  - Direct source of truth (website)
-  - No dependency on Notion
-- **Cons:**
-  - 8-12 hours development time
-  - Fragile (breaks if website structure changes)
-  - Authentication requirements unknown
-  - Rate limiting complexity
-- **Why not chosen:** Notion database already exists with structured data; scraping is overkill for static catalog
-
-#### Alternative 2: Store Products as Chunks (User's Initial Request)
-
-**Approach:** Store products in chunks table like guidelines
-- **Pros:**
-  - Reuses existing ingestion pipeline
-  - Simple implementation (treat products as documents)
-- **Cons:**
-  - Loses product-specific fields (URL, category, compliance_tags)
-  - Mixes products and guidelines in same table
-  - Cannot use dedicated `search_products()` SQL function
-  - No clean way to filter "only products"
-- **Why not chosen:** Violates separation of concerns; products table already designed for this purpose
-
-#### Alternative 3: Hybrid Approach (Both Tables)
-
-**Approach:** Store in both products table AND chunks table
-- **Pros:**
-  - Maximum flexibility
-  - Products searchable via both methods
-- **Cons:**
-  - Duplicate data (storage overhead)
-  - Sync complexity (keep embeddings in sync)
-  - Over-engineered for <100 products
-- **Why not chosen:** Unnecessary complexity for MVP; products table sufficient
+- **100% URL coverage** (canonical portal URLs)
+- **Current pricing** (scraped from live site)
+- **Problem context** (CSV enrichment)
+- **No manual updates** (re-scrape when needed)
 
 ---
 
 ## Trade-offs
 
-### Performance vs. Complexity
-- **Decision:** Favor simplicity (Notion extraction) over automation (web scraping)
-- **Rationale:** <100 products with monthly update frequency = complexity not justified
-- **Impact:** Manual Notion updates acceptable; can add scraper in Phase 2 if needed
+### Portal Scraping vs. Notion Database
 
-### Cost vs. Features
-- **Decision:** Descope compliance tags for MVP
-- **Rationale:** Saves 2-3 hours development time; tags not critical for semantic search
-- **Impact:** Products searchable by description; compliance filtering can be added later
+**Decision (PRD v3.0):** Portal scraping (not Notion)
 
-### Time to Market vs. Quality
-- **Decision:** Quick MVP (7-10 hours) over comprehensive approach (16-23 hours)
-- **Rationale:** Prove product recommendations value before investing in automation
-- **Impact:** MVP validates feature; comprehensive approach deferred to Phase 2
+**Rationale:**
+- Portal provides canonical URLs (source of truth)
+- Portal has current pricing
+- No Notion API dependency
+- Re-scraping ensures data freshness
 
-### Maintenance vs. Flexibility
-- **Decision:** Use dedicated products table (not chunks table)
-- **Rationale:** Clean architecture > implementation speed
-- **Impact:** Separate ingestion code required, but better long-term maintainability
+**Impact:**
+- +4 hours development (Crawl4AI scraping)
+- +Better URL accuracy (100% vs. ~80% with Notion)
+- +Current pricing (vs. potentially stale in Notion)
+
+### Hybrid Search vs. Vector-Only
+
+**Decision (PRD v3.0):** Hybrid search (70% vector + 30% text)
+
+**Rationale:**
+- Products have shorter text than guidelines
+- Keyword matching helps for specific terms (e.g., "fysiotherapie")
+- Dutch full-text search adds minimal overhead
+- Better recall and precision balance
+
+**Impact:**
+- +30 min development (update SQL function)
+- +Better relevance for keyword-heavy queries
+- -Negligible performance impact (<10ms)
+
+### CSV Enrichment vs. Portal-Only
+
+**Decision (PRD v3.0):** CSV enrichment (problem mappings)
+
+**Rationale:**
+- Problem descriptions provide query-like context
+- Improves semantic matching (user problems → products)
+- Many-to-one relationship (multiple problems → 1 product)
+- Only 2 hours additional effort
+
+**Impact:**
+- +2 hours development (fuzzy matching)
+- +Better retrieval quality (~15-20% improvement expected)
+- +≥25 products enriched with problem context
 
 ---
 
 ## Resources
 
 ### Official Documentation
-- **Notion API**: https://developers.notion.com/reference/intro
-- **PostgreSQL pgvector**: https://github.com/pgvector/pgvector
+- **Crawl4AI**: https://crawl4ai.com/docs (web scraping)
+- **fuzzywuzzy**: https://github.com/seatgeek/fuzzywuzzy (fuzzy matching)
+- **PostgreSQL pgvector**: https://github.com/pgvector/pgvector (vector search)
 - **OpenAI Embeddings**: https://platform.openai.com/docs/guides/embeddings
-- **Pydantic AI**: https://ai.pydantic.dev/
+- **Pydantic AI**: https://ai.pydantic.dev/ (agent framework)
 
-### Technical Articles
-- FEAT-002 completion report: `docs/features/FEAT-002_notion-integration/COMPLETION_SUMMARY.md`
-- EVI schema additions: `sql/evi_schema_additions.sql`
+### PRD v3.0 References
+- **Implementation Plan**: PRD lines 556-792
+- **Database Schema**: PRD lines 394-493
+- **Embedding Strategy**: PRD lines 536-549
+- **Success Metrics**: PRD lines 97-130
 
-### Code Examples
-- Notion integration pattern: `ingestion/notion_to_markdown.py` (lines 104-162: `fetch_all_guidelines()`)
-- Embedding generation: `ingestion/embedder.py`
-- Database insertion: `ingestion/ingest.py` (lines for PostgreSQL insert)
-
-### Community Resources
-- EVI 360 Products Database: https://www.notion.so/29dedda2a9a081409224e46bd48c5bc6
-- Example product: `big_tech_docs/example_evi360_product_bedrijfsfysiotherapie.md`
-
----
-
-## Archon Status
-
-### Knowledge Base Queries
-
-*Archon MCP was available during research:*
-
-✅ **PostgreSQL pgvector documentation**: Available in Archon knowledge base
-- Used for vector similarity search patterns
-- Confirmed IVFFLAT index configuration best practices
-
-✅ **Pydantic AI documentation**: Available in Archon knowledge base
-- Used for tool registration patterns
-- Confirmed agent tool decorator usage
-
-✅ **Notion API documentation**: Not in Archon (used existing code patterns from FEAT-002)
-- Relied on working implementation from `ingestion/notion_to_markdown.py`
-- No additional research needed (existing code sufficient)
-
-⚠️ **OpenAI embeddings**: Partial results in Archon
-- Used existing embedder implementation from `ingestion/embedder.py`
-- No new embedding patterns needed
-
-### Recommendations for Archon
-
-*Frameworks/docs already in Archon knowledge base (no additions needed):*
-
-The following are already available and were helpful:
-1. **Pydantic AI** - Agent framework patterns and tool registration
-2. **pgvector** - Vector similarity search optimization
+### Existing Infrastructure
+- **Embedding generation**: `ingestion/embedder.py`
+- **Database utilities**: `agent/db_utils.py`
+- **Product models**: `agent/models.py` (lines 308-391)
+- **SQL schema**: `sql/evi_schema_additions.sql`
 
 ---
 
-## Answers to Open Questions
+## Answers to Key Questions
 
-### Question 1: What is the EVI 360 product catalog URL?
-**Answer:** https://www.notion.so/29dedda2a9a081409224e46bd48c5bc6 (Notion database)
+### Question 1: What is the data source for products?
+**Answer:** Portal.evi360.nl web scraping (primary) + Intervention_matrix.csv (enrichment)
 **Confidence:** High
-**Source:** User clarification + database ID extraction
+**Source:** PRD v3.0 lines 48-53
 
 ### Question 2: Should we use products table or chunks table?
 **Answer:** Products table (dedicated schema with product-specific fields)
 **Confidence:** High
-**Source:** Architecture analysis + user confirmation
-**Note:** User confirmed: "We can use the dedicated table for products though I do wonder how well retrieving them will work. we will need to test this." → Pilot testing phase added
+**Source:** PRD v3.0 Database Schema (lines 394-444)
 
 ### Question 3: Does the specialist agent support products?
 **Answer:** No - currently disabled with "Geen producten aanbevelen" restriction
 **Confidence:** High
-**Source:** Code review of `agent/specialist_agent.py` lines 44, 74
+**Source:** Code review + PRD v3.0 Phase 5 requirements
 
-### Question 4: Should we implement AI categorization?
-**Answer:** No - Notion database already has "type" and "tags" fields
+### Question 4: What web scraping technology to use?
+**Answer:** Crawl4AI (JavaScript rendering, async support, intelligent extraction)
 **Confidence:** High
-**Source:** User clarification
+**Source:** PRD v3.0 Technical Architecture (lines 206-273)
 
-### Question 5: How should products appear in agent responses?
-**Answer:** Automatic when contextually relevant (agent decides based on semantic similarity)
+### Question 5: How to integrate CSV problem mappings?
+**Answer:** Fuzzy match (≥0.9 threshold) CSV products → portal products, store in metadata
 **Confidence:** High
-**Source:** User preference selection
-**Clarification:** Not "only when requested" - agent proactively shows products when relevant
+**Source:** PRD v3.0 lines 283-390
 
-### Question 6: Can we reuse Notion guidelines ingestion for products?
-**Answer:** Reuse the pattern/basis, but create dedicated `ingest_products.py` script
+### Question 6: What embedding strategy for products?
+**Answer:** Embed description + problems concatenated, no chunking (1 embedding per product)
 **Confidence:** High
-**Source:** User clarification: "it's worth creating a specific notion ingestion for products"
-**Rationale:** Different field mapping, different validation logic, cleaner code organization
+**Source:** PRD v3.0 Data Models (lines 536-549)
 
-### Question 7: What are the actual Notion database fields?
-**Answer:** id, name, type, tags, visible, URL, price_type (+ others not relevant for MVP)
+### Question 7: Vector-only or hybrid search?
+**Answer:** Hybrid search (70% vector + 30% Dutch full-text)
 **Confidence:** High
-**Source:** User confirmation
-**Note:** User added: "You can do more analysis when we actually connect the DB" → Phase 0 database inspection needed
+**Source:** PRD v3.0 SQL Function (lines 449-485)
 
-### Question 8: Should we do pilot testing before full ingestion?
-**Answer:** Yes - pilot with 10-20 products to validate retrieval quality
+### Question 8: What are the success metrics?
+**Answer:** ~60 products, 100% URL coverage, ≥80% CSV match, <500ms latency, ≥70% relevance
 **Confidence:** High
-**Source:** User confirmation
-**Rationale:** De-risk implementation, validate embedding strategy, measure quality before committing to full build
+**Source:** PRD v3.0 Success Metrics (lines 107-119)
 
 ---
 
-## Critical Uncertainties Remaining (To Resolve During Implementation)
+## Critical Implementation Notes
 
-### Category 1: Notion Database Schema Details
+**⚠️ IMPORTANT - PRD v3.0 is Source of Truth:**
 
-**Partially Known:** Fields confirmed (id, name, type, tags, visible, URL, price_type)
+1. **No Notion Database Integration**
+   - Earlier research recommended Notion
+   - PRD v3.0 changed to portal scraping
+   - Do NOT implement Notion ingestion
 
-**Still Unknown:**
-1. **Field formats:**
-   - Is `tags` an array or comma-separated string?
-   - Is `visible` a boolean or checkbox property?
-   - What does `type` categorization look like? (e.g., "Fysio" vs. "Bedrijfsfysiotherapie"?)
+2. **Portal.evi360.nl is Source of Truth**
+   - Canonical URLs from portal
+   - Current pricing from portal
+   - CSV only adds problem_mappings metadata
 
-2. **Data quality:**
-   - How many products have NULL/missing descriptions?
-   - Do all products have URLs populated?
-   - Are there duplicate products?
+3. **Crawl4AI Required (Not BeautifulSoup)**
+   - JavaScript rendering support
+   - Click into individual product pages
+   - Ignore header/footer elements
 
-3. **Filter strategy:**
-   - Should we filter by `visible=true`?
-   - What does `price_type` indicate? Should it affect filtering?
-   - How many products will remain after filtering?
+4. **Fuzzy Matching Required**
+   - Use fuzzywuzzy library
+   - ≥0.9 threshold (90% similarity)
+   - Log unmatched products for manual review
 
-**Resolution:** Phase 0 database inspection (30 min) - query database to answer these before writing ingestion code
+5. **Hybrid Search Required**
+   - 70% vector + 30% Dutch text
+   - Not vector-only
+   - Update existing SQL function
 
----
-
-### Category 2: Retrieval Quality & Search Strategy
-
-**Critical User Concern:** "I do wonder how well retrieving them will work"
-
-**Unknown:**
-1. **Embedding strategy:** Which produces best retrieval quality?
-   - Option A: Description only
-   - Option B: Name + description
-   - Option C: Name + description + type + tags
-
-2. **Search method:** Vector-only or hybrid (vector + Dutch full-text)?
-   - Products have shorter text than guidelines - is full-text search useful?
-   - Would keyword matching help for specific terms?
-
-3. **Similarity thresholds:**
-   - What score indicates "contextually relevant"? (0.7? 0.75? 0.8?)
-   - Should threshold vary for explicit requests vs. automatic recommendations?
-
-4. **Quality metrics:**
-   - How do we measure "good enough"?
-   - What's acceptable relevance rate? (70%? 80%?)
-   - What if pilot test shows poor quality?
-
-**Resolution:** Phase 1 pilot testing (2-3 hours) - test multiple strategies, measure quality, choose winning approach
-
----
-
-### Category 3: Agent Integration & Contextual Relevance
-
-**User Preference:** "Automatic when contextually relevant" (agent decides)
-
-**Unknown:**
-1. **Decision logic:** How does agent determine "contextually relevant"?
-   - Pure similarity score above threshold?
-   - Keyword matching + similarity?
-   - LLM decision based on query understanding?
-
-2. **Thresholds:**
-   - Minimum similarity for automatic recommendations?
-   - Lower threshold for explicit requests?
-   - Maximum products to show (always 3, or "up to 3")?
-
-3. **Output formatting:**
-   - Dedicated section or inline with guidelines?
-   - How much product detail to show?
-   - Include similarity scores or hide them?
-
-4. **Failure cases:**
-   - What if no products meet threshold?
-   - What if all products have similar low scores?
-   - Should agent explain why no products shown?
-
-**Resolution:** Phase 3 implementation + iterative refinement based on manual testing
-
----
-
-### Category 4: Data Validation & Error Handling
-
-**Unknown:**
-1. **Validation rules:**
-   - Skip products with missing description?
-   - Skip products with missing URL?
-   - What constitutes "invalid" data?
-
-2. **Error handling:**
-   - Log and skip, or fail fast?
-   - How to handle embedding API failures?
-   - Partial ingestion acceptable, or all-or-nothing?
-
-3. **Data enrichment:**
-   - If descriptions are very short, should we enhance them?
-   - Combine multiple fields for richer embeddings?
-
-**Resolution:** Define validation rules in Phase 0, implement in Phase 1
-
----
-
-### Category 5: Implementation Sequencing & Risk Mitigation
-
-**Key Risk:** Retrieval quality may be poor with product descriptions
-
-**Mitigation Strategy:**
-1. **Phase 0 (30 min):** Inspect database, understand data quality
-2. **Phase 1 (2-3 hours):** Pilot test with 10-20 products
-3. **Decision Point:** Only proceed to full ingestion if pilot successful
-4. **Plan B:** If quality poor, iterate on embedding strategy or data enrichment before continuing
-
-**Success Criteria for Pilot:**
-- Manual validation: >70% of top 3 results are relevant
-- Average similarity score: >0.65 for relevant matches
-- No critical failures (missing URLs, embedding errors, etc.)
-
-**Rollback Plan:**
-- If pilot fails: Do NOT proceed to full ingestion
-- Options: Enhance descriptions, try different embedding text, consider hybrid search
-- Escalate to user if fundamental data quality issues
-
----
-
-## Updated Recommendations
-
-### Primary Recommendation: Phased Approach with Pilot Testing (8-12 hours)
-
-**Phase 0: Database Inspection (30 min)**
-- Connect to Notion database
-- Query field formats, counts, data quality
-- Document findings before writing code
-- **Decision:** Filter strategy (visible=true?), exact product count
-
-**Phase 1: Pilot Test (2-3 hours)**
-- Create dedicated `ingest_products.py` (inspired by, not copied from guidelines ingestion)
-- Ingest 10-20 diverse products
-- Test 3 embedding strategies
-- Measure retrieval quality with 10-15 queries
-- **Decision:** Winning embedding strategy, proceed or iterate
-
-**Phase 2: Full Ingestion (1-2 hours) - Conditional**
-- Only if Phase 1 successful
-- Ingest all products with winning strategy
-- Validate data quality
-
-**Phase 3: Agent Integration (2-3 hours)**
-- Create product_search_tool
-- Update specialist agent (tool registration + prompt)
-- Define contextual relevance logic
-- Test with real queries
-
-**Phase 4: Testing & Validation (1-2 hours)**
-- Manual testing with 15+ queries
-- Validate acceptance criteria
-- Refine similarity thresholds
-
-**Total Time:** 8-12 hours (increased from 7-10 to account for pilot phase and risk mitigation)
-
-**Key Benefits:**
-- **De-risked:** Pilot validates approach before full investment
-- **Data-driven:** Embedding strategy chosen based on actual quality metrics
-- **Iterative:** Can refine approach if pilot shows issues
-- **User concern addressed:** "wonder how well retrieving them will work" → pilot answers this
+6. **No Compliance Tags**
+   - Removed from scope (PRD v3.0)
+   - Remove from schema and models
+   - Focus on description + problem_mappings
 
 ---
 
 ## Next Steps
 
-1. **Architecture Planning:** Create `architecture.md` with phased implementation approach
-2. **Acceptance Criteria:** Create `acceptance.md` with pilot test success criteria
-3. **Testing Strategy:** Create `testing.md` with pilot test queries and validation approach
-4. **Manual Test Guide:** Create `manual-test.md` with retrieval quality checklist
-5. **Proceed to Planning:** Run `/plan FEAT-004` with these research findings
+1. ✅ **Research Complete** - PRD v3.0 approach validated
+2. ⏳ **Architecture Planning** - Create `architecture.md` with portal scraping flow
+3. ⏳ **Acceptance Criteria** - Create `acceptance.md` with success metrics
+4. ⏳ **Testing Strategy** - Create `testing.md` with 10 test queries
+5. ⏳ **Manual Test Guide** - Create `manual-test.md` with validation checklist
+
+**Ready for Planning:** Yes - `/plan FEAT-004` with PRD v3.0 approach
 
 ---
 
-**Research Complete:** ✅ **ALL UNCERTAINTIES RESOLVED (2025-10-31 FINAL UPDATE)**
-**Ready for Planning:** Yes - all decisions made, simplified approach validated
-**Key Decisions:**
-- Product count: ~60 (not ~100)
-- Embedding: Option B (name + description)
-- Search: Vector-only
-- Validation: Skip if missing name/URL/description
-- Agent: Specialist prompt decides when to call products
-- Quality optimization: Defer to future phase
-
-**Simplified Approach:** 6-9 hours (no pilot phase needed, decisions made up front)
+**Research Complete:** ✅ **ALIGNED WITH PRD v3.0 (2025-11-03)**
+**Data Source:** Portal.evi360.nl scraping + Intervention_matrix.csv enrichment
+**Technology:** Crawl4AI for web scraping, fuzzywuzzy for matching
+**Storage:** Products table with price field, problem_mappings in metadata
+**Search:** Hybrid (70% vector + 30% Dutch text)
+**Effort:** 14 hours (6 phases)
