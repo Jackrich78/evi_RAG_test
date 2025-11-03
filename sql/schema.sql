@@ -40,6 +40,34 @@ CREATE INDEX idx_chunks_document_id ON chunks (document_id);
 CREATE INDEX idx_chunks_chunk_index ON chunks (document_id, chunk_index);
 CREATE INDEX idx_chunks_content_trgm ON chunks USING GIN (content gin_trgm_ops);
 
+-- ============================================================================
+-- Session and Message Tables (Reserved for Future CLI/Direct API Usage)
+-- ============================================================================
+--
+-- NOTE: These tables are NOT used by the OpenWebUI integration (FEAT-008 v2).
+--
+-- OpenWebUI Integration Pattern (Stateless):
+-- - OpenWebUI sends full conversation history in request.messages array
+-- - Backend extracts message_history from request (no database reads)
+-- - Zero database queries for session/message management
+-- - Stateless request/response pattern (horizontally scalable)
+--
+-- These Tables Are Reserved For:
+-- - Future CLI tool (if needed for local conversation persistence)
+-- - Direct API usage with X-Session-ID header (not OpenWebUI)
+-- - Potential future features requiring server-side session state
+--
+-- Design Decision (FEAT-008):
+-- - Keep tables in schema (no harm, future-proofing)
+-- - Mark as "CLI-reserved" to avoid confusion
+-- - OpenWebUI flow bypasses these tables entirely
+--
+-- Related Documentation:
+-- - docs/features/FEAT-008_advanced-memory/architecture-v2.md (Pattern 1: Pure Stateless)
+-- - docs/features/FEAT-008_advanced-memory/prd-v2.md (OpenWebUI session findings)
+-- - docs/features/archive/FEAT-008_incorrect_assumptions/ (Why v1 approach was wrong)
+-- ============================================================================
+
 CREATE TABLE sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT,

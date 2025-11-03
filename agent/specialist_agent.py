@@ -17,6 +17,8 @@ import uuid
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models import Model
+from pydantic_ai.messages import ModelRequest, ModelResponse
+from pydantic_ai.messages import UserPromptPart, TextPart
 
 from .models import (
     SpecialistResponse,
@@ -215,10 +217,94 @@ async def validate_dutch_response(ctx: RunContext[SpecialistDeps], response: Spe
     return response
 
 
+def convert_openai_to_pydantic_history(messages: List[Dict[str, str]]) -> List:
+    """
+    Convert OpenAI-format messages to PydanticAI message_history format.
+
+    Extracts conversation history from OpenWebUI request messages and converts
+    to PydanticAI's ModelRequest/ModelResponse format for agent.run().
+
+    FEAT-008: Stateless multi-turn conversations
+    - OpenWebUI sends full history in request.messages
+    - Extract all messages except last (current query)
+    - Convert user → ModelRequest, assistant → ModelResponse
+    - Skip system messages (handled separately by agent config)
+
+    Args:
+        messages: List of OpenAI-format messages with role/content
+                  Example: [{"role": "user", "content": "Hi"},
+                           {"role": "assistant", "content": "Hello"},
+                           {"role": "user", "content": "Current query"}]
+
+    Returns:
+        List of PydanticAI ModelMessage objects for message_history parameter
+        Example: [ModelRequest(...), ModelResponse(...)]
+        Note: Last message excluded (it's the current query)
+
+    Handles:
+        - AC-FEAT-008-NEW-101: Empty messages array → returns []
+        - AC-FEAT-008-NEW-102: System messages filtered out
+        - AC-FEAT-008-NEW-103: Order preserved exactly
+        - AC-FEAT-008-NEW-104: Invalid messages skipped with warning
+        - AC-FEAT-008-NEW-106: Mixed role sequences allowed
+        - AC-FEAT-008-NEW-108: Unicode/Dutch characters preserved
+
+    Related:
+        - docs/features/FEAT-008_advanced-memory/architecture-v2.md (Pattern 1)
+        - docs/features/FEAT-008_advanced-memory/acceptance-v2.md (AC criteria)
+    """
+    history = []
+
+    # Handle edge case: empty or single message (AC-101, AC-105)
+    if not messages or len(messages) <= 1:
+        logger.debug("No history to convert (first message or empty array)")
+        return history
+
+    # Convert all messages except last (current query)
+    for msg in messages[:-1]:
+        try:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+
+            # Skip system messages (AC-102)
+            if role == "system":
+                logger.debug("Skipping system message in history conversion")
+                continue
+
+            # Validate message has content (AC-104)
+            if not content:
+                logger.warning(f"Skipping message with empty content: role={role}")
+                continue
+
+            # Convert based on role
+            if role == "user":
+                # User message → ModelRequest with UserPromptPart
+                history.append(
+                    ModelRequest(parts=[UserPromptPart(content=content)])
+                )
+            elif role == "assistant":
+                # Assistant message → ModelResponse with TextPart
+                history.append(
+                    ModelResponse(parts=[TextPart(content=content)])
+                )
+            else:
+                # Unknown role (AC-104)
+                logger.warning(f"Unknown message role '{role}', skipping")
+
+        except Exception as e:
+            # Graceful error handling (AC-104, AC-205)
+            logger.warning(f"Error converting message: {e}, skipping message")
+            continue
+
+    logger.info(f"Converted {len(history)} messages from history (excluded last message)")
+    return history
+
+
 async def run_specialist_query(
     query: str,
     session_id: Optional[str] = None,
-    user_id: str = "cli_user"
+    user_id: str = "cli_user",
+    message_history: Optional[List] = None
 ) -> SpecialistResponse:
     """
     Convenience function to run a single specialist query.
@@ -226,10 +312,14 @@ async def run_specialist_query(
     Wraps specialist_agent.run() with automatic dependency setup.
     Language is automatically detected from the query - no need to specify.
 
+    FEAT-008: Now supports conversation history for multi-turn interactions.
+
     Args:
         query: Safety question (in Dutch or English - language auto-detected)
         session_id: Optional session ID (generates UUID if None)
         user_id: User identifier (default: "cli_user")
+        message_history: Optional conversation history (PydanticAI ModelMessage list)
+                        Used by OpenWebUI integration for stateless multi-turn conversations
 
     Returns:
         SpecialistResponse with content, citations, metadata
@@ -271,8 +361,8 @@ async def run_specialist_query(
         """Validate specialist response before returning."""
         return await validate_dutch_response(ctx, response)
 
-    # Run agent
-    result = await agent.run(query, deps=deps)
+    # Run agent (FEAT-008: pass message_history for multi-turn conversations)
+    result = await agent.run(query, message_history=message_history or [], deps=deps)
 
     # Extract response (use .output, not .data which is deprecated)
     response = result.output
@@ -304,7 +394,8 @@ async def run_specialist_query(
 async def run_specialist_query_stream(
     query: str,
     session_id: Optional[str] = None,
-    user_id: str = "cli_user"
+    user_id: str = "cli_user",
+    message_history: Optional[List] = None
 ):
     """
     Stream specialist agent response token-by-token (FEAT-010).
@@ -313,10 +404,14 @@ async def run_specialist_query_stream(
     Yields text deltas during generation, then yields final response with citations.
     Language is automatically detected from the query.
 
+    FEAT-008: Now supports conversation history for multi-turn streaming interactions.
+
     Args:
         query: Safety question (in Dutch or English - language auto-detected)
         session_id: Optional session ID (generates UUID if None)
         user_id: User identifier (default: "cli_user")
+        message_history: Optional conversation history (PydanticAI ModelMessage list)
+                        Used by OpenWebUI integration for stateless multi-turn conversations
 
     Yields:
         tuple[str, str | SpecialistResponse]:
@@ -381,8 +476,8 @@ async def run_specialist_query_stream(
     handler = StreamHandler()
 
     try:
-        # Use run_stream() for structured output streaming
-        async with agent.run_stream(query, deps=deps) as result:
+        # Use run_stream() for structured output streaming (FEAT-008: pass message_history)
+        async with agent.run_stream(query, message_history=message_history or [], deps=deps) as result:
             # Pydantic AI 0.3.2: stream_structured() yields (ModelResponse, is_last) tuples
             async for message, is_last in result.stream_structured():
                 # Validate with partial support (allows incomplete citations during streaming)

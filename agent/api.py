@@ -724,6 +724,18 @@ async def openai_chat_completions(request: OpenAIChatRequest):
             ).model_dump()
         )
 
+    # FEAT-008: Extract conversation history from OpenWebUI messages
+    # OpenWebUI sends full history in request.messages - convert to PydanticAI format
+    if len(request.messages) > 1:
+        from .specialist_agent import convert_openai_to_pydantic_history
+        message_history = convert_openai_to_pydantic_history(
+            [msg.model_dump() for msg in request.messages]
+        )
+        logger.info(f"Extracted {len(message_history)} messages from conversation history")
+    else:
+        message_history = []
+        logger.info("No history (first message in conversation)")
+
     # Generate session ID (stateless)
     session_id = str(uuid.uuid4())
 
@@ -738,8 +750,8 @@ async def openai_chat_completions(request: OpenAIChatRequest):
                 # Initial chunk with role
                 yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}]})}\n\n'
 
-                # Stream content from specialist agent
-                async for chunk_type, chunk_data in run_specialist_query_stream(user_message, session_id):
+                # Stream content from specialist agent (FEAT-008: pass message_history)
+                async for chunk_type, chunk_data in run_specialist_query_stream(user_message, session_id, message_history=message_history):
                     if chunk_type == "text":
                         # Text delta chunk
                         yield f'data: {json.dumps({"id": chunk_id, "object": "chat.completion.chunk", "created": created_time, "model": "evi-specialist", "choices": [{"index": 0, "delta": {"content": chunk_data}, "finish_reason": None}]})}\n\n'
@@ -781,8 +793,8 @@ async def openai_chat_completions(request: OpenAIChatRequest):
         )
 
     else:
-        # Non-streaming mode
-        result = await run_specialist_query(user_message, session_id)
+        # Non-streaming mode (FEAT-008: pass message_history)
+        result = await run_specialist_query(user_message, session_id, message_history=message_history)
 
         # Format response in OpenAI format
         return OpenAIChatResponse(
