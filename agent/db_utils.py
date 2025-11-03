@@ -220,18 +220,29 @@ async def get_session_messages(
     limit: Optional[int] = None
 ) -> List[Dict[str, Any]]:
     """
-    Get messages for a session.
-    
+    Get messages for a session in chronological order (oldest first).
+
     Args:
         session_id: Session UUID
-        limit: Maximum number of messages to return
-    
+        limit: Maximum number of messages to return (default: None for all messages)
+
     Returns:
-        List of messages ordered by creation time
+        List of messages ordered by creation time (oldest first)
+
+    Security:
+        Uses parameterized queries to prevent SQL injection.
+        CRITICAL FIX: Replaced f-string interpolation with $2 parameter.
     """
     async with db_pool.acquire() as conn:
+        # Update last_accessed timestamp (for cleanup tracking)
+        await conn.execute(
+            "UPDATE sessions SET last_accessed = NOW() WHERE id = $1::uuid",
+            session_id
+        )
+
+        # Retrieve messages with parameterized LIMIT (SQL injection safe)
         query = """
-            SELECT 
+            SELECT
                 id::text,
                 role,
                 content,
@@ -239,14 +250,17 @@ async def get_session_messages(
                 created_at
             FROM messages
             WHERE session_id = $1::uuid
-            ORDER BY created_at
+            ORDER BY created_at DESC
         """
-        
+
+        # CRITICAL FIX: Use parameterized query instead of f-string
         if limit:
-            query += f" LIMIT {limit}"
-        
-        results = await conn.fetch(query, session_id)
-        
+            query += " LIMIT $2"
+            results = await conn.fetch(query, session_id, limit)
+        else:
+            results = await conn.fetch(query, session_id)
+
+        # Reverse to maintain chronological order (oldest first for context)
         return [
             {
                 "id": row["id"],
@@ -255,7 +269,7 @@ async def get_session_messages(
                 "metadata": json.loads(row["metadata"]),
                 "created_at": row["created_at"].isoformat()
             }
-            for row in results
+            for row in reversed(results)
         ]
 
 

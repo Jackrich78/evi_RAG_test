@@ -271,18 +271,18 @@ Support both stateless (no header) and stateful (with header) modes. Server chec
 ## Future Enhancements (Out of Scope for FEAT-008)
 
 - **Semantic Context Search:** Replace simple LIMIT 10 with relevance-based message retrieval
-- **Context Summarization:** Summarize old messages to fit more context in token window
+- **Context Summarization:** Summarize old messages to fit more context in token window using PydanticAI history_processors
 - **Session Sharing:** Allow multiple users to share session (team collaboration)
-- **DESC Index Optimization:** Rebuild index on created_at for faster descending queries (separate task)
-- **Token Limit Enforcement:** Calculate token count and truncate context to fit within 8K limit
+- **Token Limit Enforcement:** Calculate token count and truncate context to fit within model limits
+- **Automatic Session Cleanup:** Implement pg_cron job for daily cleanup of inactive sessions (currently manual)
 
 ## References
 
 - PRD: docs/features/FEAT-008_advanced-memory/prd.md
-- Database Analysis: docs/features/FEAT-008_advanced-memory/postgres-optimization.md
-- OpenWebUI Session Patterns: docs/features/FEAT-007_openwebui-integration/session-research.md
+- Research: docs/features/FEAT-008_advanced-memory/research.md (PostgreSQL specialist analysis, PydanticAI patterns)
 - Current Schema: sql/schema.sql (lines 43-64)
-- Session Functions: agent/db_utils.py (lines 84-259)
+- Migration: sql/008_add_last_accessed.sql (adds last_accessed column, corrects index myths)
+- Session Functions: agent/db_utils.py (lines 84-273, SQL injection fixed)
 - Chat Endpoint: agent/api.py (lines 677-800)
 
 ---
