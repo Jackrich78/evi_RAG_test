@@ -1,6 +1,6 @@
 # Documentation Index
 
-*Last updated: 2025-11-02*
+*Last updated: 2025-11-03*
 
 ## Overview
 
@@ -79,16 +79,51 @@ This documentation index provides a comprehensive map of all project documentati
 
 ### Ready for Implementation
 
-#### [FEAT-004: Product Catalog](features/FEAT-004_product-catalog/)
+#### [FEAT-004: Product Catalog with Interventie Wijzer Integration](features/FEAT-004_product-catalog/) ⭐ MERGED FEAT-011
 **Status:** Planning Complete - Ready for Build
-**Planned:** 2025-10-31
+**Updated:** 2025-11-03 (Merged FEAT-011 scope)
+**Scope:** Portal scraping + CSV problem mappings + hybrid search
+**Dependencies:** FEAT-002 ✅, FEAT-003 ✅
+**Blocks:** FEAT-012
+**Estimated:** 14 hours
 **Documents:**
-- [Product Requirements](features/FEAT-004_product-catalog/prd.md)
+- [Product Requirements v3](features/FEAT-004_product-catalog/prd.md) - **Merged FEAT-011**
 - [Research Findings](features/FEAT-004_product-catalog/research.md)
-- [Architecture Decision](features/FEAT-004_product-catalog/architecture.md)
-- [Acceptance Criteria](features/FEAT-004_product-catalog/acceptance.md)
-- [Testing Strategy](features/FEAT-004_product-catalog/testing.md)
-- [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md)
+- [Archived v1 Planning](features/FEAT-004_product-catalog/archive/) - Original broad-scope docs
+- [Interventie Wijzer Data](features/FEAT-004_product-catalog/Interventiewijzer.md) - 5-step methodology
+- [Intervention Matrix CSV](features/FEAT-004_product-catalog/Intervention_matrix.csv) - 33 problem-intervention mappings
+
+**Recent Changes:**
+- ✅ **MERGED FEAT-011** into FEAT-004 (scope consolidation)
+- Changed from Notion to portal.evi360.nl web scraping (Crawl4AI)
+- Integrated interventie wijzer CSV (33 problem-product mappings)
+- Fuzzy matching CSV→portal products (≥0.9 threshold)
+- Hybrid search: 70% vector + 30% Dutch text
+- Embedding: 1 product = 1 embedding (NO chunking)
+
+**What It Does:**
+- Scrape ~60 products from portal.evi360.nl
+- Parse Intervention_matrix.csv for problem mappings
+- Enrich metadata with problem_mappings
+- Generate embeddings (description + problems)
+- Enable hybrid search for agent recommendations
+
+#### [FEAT-012: Two-Stage Search Protocol & Product-Guideline Linking](features/FEAT-012_two-stage-search/) ⭐ NEW
+**Status:** Planning Complete - Blocked by FEAT-004
+**Created:** 2025-11-03
+**Scope:** Stage 1 candidate generation + Stage 2 LLM ranking + product-guideline linking
+**Dependencies:** FEAT-004 (blocking)
+**Estimated:** 20 hours
+**Documents:**
+- [Product Requirements](features/FEAT-012_two-stage-search/prd.md)
+
+**What It Does:**
+- Stage 1: Fast vector search (50 candidates, <100ms)
+- Stage 2: LLM contextual ranking with weighted scoring (impact 0.4, fit 0.3, guidelines 0.2, feasibility 0.1)
+- Apply interventie wijzer 5-step methodology in LLM prompt
+- Link products to relevant Dutch guidelines (citations)
+- Display product URLs in recommendations
+- Improve search relevance from ~85% to ~90%
 
 #### [FEAT-008: Advanced Memory - Stateless Multi-Turn Conversations](features/FEAT-008_advanced-memory/) ✅
 **Status:** Implemented

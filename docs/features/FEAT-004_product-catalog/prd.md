@@ -1,563 +1,1052 @@
-# PRD: FEAT-004 - Product Catalog Ingestion
+# PRD: FEAT-004 - Product Catalog with Interventie Wijzer Integration
 
 **Feature ID:** FEAT-004
-**Phase:** 4 (Product Knowledge)
-**Status:** 🚀 Ready for Planning
-**Priority:** Medium
-**Owner:** TBD
-**Dependencies:** FEAT-003 (Specialist Agent - complete)
-**Created:** 2025-10-25
-**Last Updated:** 2025-10-31
+**Feature Name:** Product Catalog with Interventie Wijzer Integration
+**Status:** Ready for Implementation
+**Priority:** High
+**Created:** 2025-11-03
+**Updated:** 2025-11-03 (Merged FEAT-011 scope)
+**Dependencies:** FEAT-002 (Notion Guidelines) ✅ Complete, FEAT-003 (Specialist Agent) ✅ Complete
+**Blocks:** FEAT-012 (Two-Stage Search Protocol)
 
 ---
 
-## Problem Statement
+## Executive Summary
 
-Build a searchable catalog of ~100 EVI 360 safety products to enable contextually relevant product recommendations alongside guideline results. Products must be semantically searchable to support workplace safety specialists in finding relevant equipment and services.
+Ingest EVI 360's ~60 intervention products by scraping portal.evi360.nl and enrich them with problem-to-product mappings from the Interventie Wijzer CSV matrix. Enable the specialist agent to recommend relevant products through hybrid search (vector + problem matching), providing actionable intervention recommendations beyond guideline citations.
 
-**Quick MVP Approach:** Ingest products from existing Notion database with minimal transformation, enable semantic search, integrate with specialist agent for contextual recommendations.
+**Value Proposition:** Enables agent to recommend EVI 360 intervention products with working URLs and problem-context mapping, expanding beyond guideline citations to actionable service recommendations.
 
----
-
-## Goals
-
-1. **Product Ingestion:** Import ~100 products from Notion database (https://www.notion.so/29dedda2a9a081409224e46bd48c5bc6)
-2. **Semantic Search:** Enable vector similarity search for product discovery
-3. **Agent Integration:** Allow specialist agent to retrieve products when contextually relevant
-4. **Simple Categories:** Extract existing "type" and "tags" from Notion (no AI categorization needed for MVP)
-5. **Quick Time-to-Value:** Operational within 7-10 hours of development
+**Scope Change:** This PRD **merges FEAT-011** (Interventie Wijzer integration) into FEAT-004. The combined feature includes:
+- ✅ **Portal.evi360.nl web scraping** (all ~60 products with Crawl4AI)
+- ✅ **Interventie Wijzer CSV ingestion** (33 problem-to-product mappings)
+- ✅ **Problem mapping enrichment** (store problems in product metadata)
+- ✅ **Hybrid search** (vector similarity on description + problems)
+- ❌ **Two-stage search protocol** → Deferred to FEAT-012
+- ❌ **Query expansion with LLM ranking** → Deferred to FEAT-012
 
 ---
 
-## User Stories
+## Background & Context
 
-### Story 1: Product Data Ingestion
+### Current State (Before FEAT-004)
+
+**Specialist Agent Capabilities:**
+- ✅ Search Dutch workplace safety guidelines (FEAT-002 + FEAT-003)
+- ✅ Provide citations to NVAB, UWV, STECR guidelines
+- ❌ **Cannot** recommend EVI 360 intervention products
+- ❌ **Cannot** provide product URLs for booking
+
+**Current Agent Restriction:**
+```python
+# agent/specialist_agent.py (line 44, 74)
+"Geen producten aanbevelen (niet in deze versie)"
+```
+
+### What FEAT-004 Adds
+
+**1. Product Web Scraping from Portal.evi360.nl (Crawl4AI)**
+   - Scrape ~60 EVI 360 intervention products from portal.evi360.nl/products
+   - Click into each product page for full details (ignore header/footer)
+   - Extract: name, description, price, canonical URL
+   - Store as **source of truth** for all product data
+
+**2. Interventie Wijzer CSV Integration**
+   - Parse Intervention_matrix.csv (33 problem-to-product mappings)
+   - Extract: problem descriptions, categories, product names
+   - Fuzzy match CSV products to scraped portal products (≥0.9 similarity)
+   - Enrich portal products with problem mappings in metadata
+
+**3. Problem-to-Product Metadata Enrichment**
+   - Store problem descriptions as array in `metadata.problem_mappings`
+   - Store CSV category in `metadata.csv_category`
+   - Many-to-one relationship: multiple problems → same product
+   - Example: "Vroegconsult Arbeidsdeskundige" linked to 3 different problems
+
+**4. Hybrid Search Tool**
+   - `search_products()` agent tool with **hybrid search**:
+     - Vector similarity on embeddings (description + problems concatenated)
+     - PostgreSQL hybrid_search function (70% vector + 30% text)
+   - Returns top 3-5 products with name, description, URL, price, category
+   - Agent decides when to call (triggered by intervention/product queries)
+
+**5. Agent Integration**
+   - Remove "Geen producten aanbevelen" restriction from specialist_agent.py
+   - Add system prompt instruction to call search_products() when appropriate
+   - Format products in Dutch markdown with URLs and pricing
+
+### What FEAT-004 Does NOT Include (Deferred to FEAT-012)
+
+- ❌ **Two-stage search protocol**
+  - LLM-based ranking with weighted scoring (impact, fit, feasibility)
+  - Product-guideline linking at search time
+  - Canonicalization & deduplication logic
+- ❌ **Query expansion with LLM**
+  - Using LLM to expand user query with interventie wijzer keywords
+  - Synonym expansion for better recall
+- ❌ **Advanced search features** (Future phases)
+  - Multi-modal search (images, videos)
+  - User feedback integration
+  - A/B testing different search strategies
+
+**Design Philosophy:** "Get it working first, optimize later" - Start with simple hybrid search, add LLM ranking in FEAT-012.
+
+---
+
+## Goals & Success Metrics
+
+### Goals
+
+1. **Data Availability:** All ~60 products scraped from portal.evi360.nl with embeddings
+2. **URL Accuracy:** 100% of products have canonical portal.evi360.nl URLs (source of truth)
+3. **Problem Mapping:** ≥80% of CSV products fuzzy-matched to portal products
+4. **Search Functionality:** Agent can retrieve products via hybrid search (vector + text)
+5. **Performance:** Product search completes in <500ms (95th percentile)
+6. **Agent Integration:** Products embedded in Dutch responses with URLs and pricing
+
+### Success Metrics
+
+| Metric | Target | Measurement Method |
+|--------|--------|-------------------|
+| **Products Scraped** | ~60 products | Count scraped from portal.evi360.nl/products |
+| **Embedding Coverage** | 100% | All products have non-null embedding (description + problems) |
+| **URL Coverage** | 100% | All products have canonical portal.evi360.nl URL |
+| **URL Validity** | ≥95% | % URLs returning HTTP 200 when scraped |
+| **CSV Match Rate** | ≥80% | % of 33 CSV products fuzzy-matched to portal products |
+| **Problem Mapping Coverage** | ≥25 products | # products with problem_mappings in metadata |
+| **Search Latency** | <500ms (p95) | PostgreSQL hybrid_search query timing |
+| **Agent Adoption** | ≥3 calls/conversation | Avg search_products() calls when relevant |
+| **Response Quality** | ≥70% relevance | Human evaluation on 10 test queries |
+
+### Non-Goals (Explicitly Out of Scope)
+
+- ❌ Real-time portal monitoring (batch scraping only, manual re-scrape trigger)
+- ❌ Product versioning or change tracking
+- ❌ Product images or multimedia (text-only for now)
+- ❌ User-generated product reviews or ratings
+- ❌ Inventory management or availability status
+- ❌ Multi-language support (Dutch only)
+- ❌ LLM-based query expansion (deferred to FEAT-012)
+- ❌ Product-guideline linking at search time (deferred to FEAT-012)
+
+---
+
+## User Stories & Use Cases
+
+### User Story 1: EVI Specialist Needs Product Recommendations
+
+**As an** EVI intervention specialist
+**I want** the agent to recommend relevant EVI 360 products
+**So that** I can provide actionable solutions beyond just guideline citations
+
+**Scenario:**
+```
+User query: "Werknemer heeft last van burn-out klachten"
+
+Agent response (before FEAT-004):
+"Volgens de NVAB Richtlijn Overspanning en burn-out..."
+[Only guidelines, no products]
+
+Agent response (after FEAT-004):
+"Volgens de NVAB Richtlijn Overspanning en burn-out...
+
+Relevante EVI 360 interventies:
+1. **Herstelcoaching** - 6-9 maanden traject voor burn-out herstel
+   [https://portal.evi360.nl/products/15]
+2. **Psychologische Ondersteuning** - Diepgaande begeleiding
+   [https://portal.evi360.nl/products/9]"
+```
+
+**Acceptance Criteria:**
+- Agent calls `search_products()` when query relates to interventions
+- Products formatted in Dutch with descriptions
+- URLs displayed in markdown format
+- At least 2-3 relevant products shown
+
+---
+
+### User Story 2: Easy Access to Product Information
+
+**As an** EVI specialist
+**I want** direct URLs to product pages on portal.evi360.nl
+**So that** I can immediately book services without manual searching
+
+**Acceptance Criteria:**
+- 100% of products include URL
+- URLs are canonical (prefer `/products/<id>` format)
+- Clicking URL opens correct product page
+- Broken URLs logged for investigation
+
+---
+
+### User Story 3: Consistent Product Data
+
 **As a** system administrator
-**I want** to ingest all EVI 360 products from Notion into PostgreSQL
-**So that** products are searchable via semantic search
+**I want** products re-scraped easily when portal.evi360.nl updates
+**So that** product catalog stays current without manual database editing
 
 **Acceptance Criteria:**
-- [ ] ~100 products ingested from Notion database (ID: 29dedda2a9a081409224e46bd48c5bc6)
-- [ ] All products have: name, description, URL, embedding
-- [ ] Categories extracted from Notion "type" field
-- [ ] Tags extracted from Notion "tags" field
-
-### Story 2: Contextual Product Recommendations
-**As a** workplace safety specialist using the RAG system
-**I want** relevant products to appear automatically when my query relates to equipment or services
-**So that** I can discover EVI 360 solutions without explicitly asking for products
-
-**Acceptance Criteria:**
-- [ ] Query "Welke producten zijn er voor bedrijfsfysiotherapie?" returns relevant products
-- [ ] Query about guidelines only (e.g., "Wat zegt de richtlijn over werken op hoogte?") prioritizes guidelines, shows products only if contextually relevant
-- [ ] Top 3 most relevant products returned with similarity scores
-- [ ] Products include: name, description, URL, category
-
-### Story 3: Semantic Product Search
-**As a** specialist agent
-**I want** to search products by semantic similarity to user queries
-**So that** I can recommend products even when exact keyword matches don't exist
-
-**Acceptance Criteria:**
-- [ ] Query "fysieke klachten" matches "Bedrijfsfysiotherapie" products
-- [ ] Query "stress en burn-out" matches "Bedrijfsmaatschappelijk werk" products
-- [ ] Vector similarity search returns products ranked by relevance
+- `python3 -m ingestion.ingest_products --refresh` re-scrapes portal.evi360.nl
+- Existing products updated (upsert by name or URL)
+- New products added automatically
+- Removed products marked inactive (soft delete)
+- Re-scraping completes in <10 minutes for ~60 products (including Crawl4AI clicks)
 
 ---
 
-## Scope
+## Technical Architecture
 
-### In Scope ✅
+### Data Sources
 
-**Quick MVP Approach (7-10 hours):**
+#### 1. Portal.evi360.nl Website (Primary Source - Crawl4AI)
 
-- **Notion Product Ingestion** (`ingestion/ingest_products.py`):
-  - Fetch all products from Notion database (ID: 29dedda2a9a081409224e46bd48c5bc6)
-  - Extract fields: name, description, URL (or construct from portal.evi360.nl)
-  - Map Notion "type" → products.category
-  - Map Notion "tags" → products.metadata (or compliance_tags if safety-related)
-  - Generate embeddings using existing embedder (OpenAI text-embedding-3-small)
-  - Store in dedicated `products` table (NOT chunks table)
+**Base URL:** `https://portal.evi360.nl/products`
+**Target:** Product listing page → click into each product page for full details
+**Tool:** Crawl4AI (intelligent web scraping with JavaScript rendering)
 
-- **Product Search Tool** (`agent/tools.py`):
-  - Create `product_search_tool()` function
-  - Query products table using vector similarity
-  - Return top N products as `ProductSearchResult` list
-  - Reuse existing `search_products()` SQL function
-
-- **Specialist Agent Integration** (`agent/specialist_agent.py`):
-  - Add `@specialist_agent.tool` decorator for product search
-  - Remove "Geen producten aanbevelen" restriction
-  - Update prompt: products shown when contextually relevant (not forced)
-  - Extend response model to include `product_recommendations: List[ProductRecommendation]`
-  - Agent decides when to retrieve products based on query intent
-
-- **Testing & Validation**:
-  - Verify ~100 products ingested with embeddings
-  - Test semantic search ("bedrijfsfysiotherapie", "stress", "fysieke klachten")
-  - Validate agent returns top 3 products when relevant
-
-### Out of Scope ❌
-- **AI categorization** (Notion already has "type" field)
-- **Compliance tag detection** (descoped for MVP - nice to have)
-- **Web scraping** (Notion database is faster)
-- Real-time inventory sync (static catalog)
-- Product pricing or availability
-- Product images
-- Product-to-guideline knowledge graph (future enhancement)
-
----
-
-## Success Criteria
-
-**Ingestion:**
-- ✅ ~100 products successfully ingested from Notion
-- ✅ All products have: name, description, URL, embedding
-- ✅ Category extracted from Notion "type" field
-- ✅ 100% products have embeddings (no NULL embeddings)
-
-**Search Quality:**
-- ✅ Query "bedrijfsfysiotherapie" returns relevant physiotherapy products
-- ✅ Query "stress en burn-out" returns "Bedrijfsmaatschappelijk werk" products
-- ✅ Top 3 products returned ranked by semantic similarity
-
-**Agent Integration:**
-- ✅ Specialist agent can retrieve products via `search_products()` tool
-- ✅ Products appear in responses when contextually relevant
-- ✅ Queries without product relevance don't force product recommendations
-- ✅ Agent returns Dutch product reasoning/descriptions
-
----
-
-## Dependencies
-
-**Infrastructure:**
-- ✅ PostgreSQL 17 + pgvector with `products` table (FEAT-001 - complete)
-- ✅ `search_products()` SQL function exists (sql/evi_schema_additions.sql lines 210-245)
-- ✅ Pydantic models: EVIProduct, ProductRecommendation, ProductSearchResult (agent/models.py)
-
-**External Services:**
-- ✅ Notion API access (NOTION_API_TOKEN configured in FEAT-002)
-- ✅ OpenAI API key for embeddings (EMBEDDING_API_KEY configured)
-- ✅ Notion products database accessible (ID: 29dedda2a9a081409224e46bd48c5bc6)
-
-**Code Dependencies:**
-- ✅ Existing Notion client (ingestion/notion_to_markdown.py)
-- ✅ Existing embedder (ingestion/embedder.py)
-- ✅ Specialist agent framework (agent/specialist_agent.py)
-
----
-
-## Technical Notes
-
-### Notion Database Schema (CONFIRMED 2025-10-31)
-
-- **URL:** https://www.notion.so/29dedda2a9a081409224e46bd48c5bc6
-- **Database ID:** 29dedda2a9a081409224e46bd48c5bc6
-
-**Known Fields:**
-- `id` - Notion page ID (UUID)
-- `name` - Product name (string)
-- `type` - Product category (string) - e.g., "Fysio", "Juridisch"
-- `tags` - Product tags (format TBD - array or string?)
-- `visible` - Visibility flag (boolean?) - **IMPORTANT:** Filter by this?
-- `URL` - Portal URL (string) - ✅ Exists in Notion (no construction needed!)
-- `price_type` - Pricing model (string) - Not using for MVP
-- `description` - Product description (assumed, format TBD)
-- Other fields exist but not relevant for MVP
-
-**Example Product:** Bedrijfsmaatschappelijk werk (see: big_tech_docs/example_evi360_product_bedrijfsfysiotherapie.md)
-
-### Data Mapping Strategy
-
-**Option A: Description Only (Simple)**
+**Scraping Strategy:**
 ```python
-products.name = notion_page["name"]
-products.description = notion_page["description"]  # Just description
-products.category = notion_page["type"]
-products.url = notion_page["URL"]  # Extract directly from Notion
-products.embedding = generate_embedding(description)
-products.metadata = {"tags": notion_page["tags"], "price_type": notion_page["price_type"]}
-products.source = "notion_database"
+# ingestion/scrape_portal_products.py
+from crawl4ai import AsyncWebCrawler
+
+async def scrape_all_products() -> List[Dict[str, Any]]:
+    """
+    Scrape all ~60 products from portal.evi360.nl using Crawl4AI.
+
+    Returns:
+        List of products with name, description, price, url
+    """
+    products = []
+
+    async with AsyncWebCrawler() as crawler:
+        # Step 1: Get product listing page
+        result = await crawler.arun(
+            url="https://portal.evi360.nl/products",
+            bypass_cache=True
+        )
+
+        # Step 2: Extract product URLs from listing (ignore header/footer)
+        soup = BeautifulSoup(result.html, "html.parser")
+        product_links = []
+
+        # Find main content area (ignore nav, header, footer)
+        main_content = soup.select("main") or soup.select(".products-grid")
+        for link in main_content[0].select("a[href*='/products/']"):
+            product_url = urljoin("https://portal.evi360.nl", link["href"])
+            product_links.append(product_url)
+
+        # Step 3: Click into each product page
+        for product_url in product_links:
+            product_result = await crawler.arun(
+                url=product_url,
+                bypass_cache=True
+            )
+
+            # Extract product details from individual page
+            product = extract_product_details(product_result.html)
+            product["url"] = product_url  # Store canonical URL
+            products.append(product)
+
+    return products
+
+def extract_product_details(html: str) -> Dict[str, Any]:
+    """
+    Extract name, description, price from product page HTML.
+
+    Returns:
+        {"name": str, "description": str, "price": str, "category": str}
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Extract fields (selectors TBD - inspect site first)
+    name = soup.select_one("h1.product-title").text.strip()
+    description = soup.select_one(".product-description").text.strip()
+    price = soup.select_one(".product-price").text.strip()
+    category = soup.select_one(".product-category").text.strip() if soup.select_one(".product-category") else None
+
+    return {
+        "name": name,
+        "description": description,
+        "price": price,
+        "category": category
+    }
 ```
 
-**Option B: Name + Description (Better Semantic Matching)**
-```python
-embedding_text = f"{notion_page['name']}\n\n{notion_page['description']}"
-products.embedding = generate_embedding(embedding_text)
-```
-
-**Option C: Name + Description + Type + Tags (Maximum Context)**
-```python
-embedding_text = f"{notion_page['name']}\n\nType: {notion_page['type']}\n\n{notion_page['description']}\n\nTags: {', '.join(notion_page['tags'])}"
-products.embedding = generate_embedding(embedding_text)
-```
-
-**Decision:** Test all three in pilot phase, choose best performing
-
-### Storage & Search Strategy
-
-**Storage:**
-- ✅ Use dedicated `products` table (NOT chunks table)
-- Rationale: Product-specific fields (URL, category), clean separation from guidelines
-
-**Search Options:**
-- **Option 1:** Vector-only search (simple, like current `search_products()` SQL function)
-- **Option 2:** Hybrid search (vector + Dutch full-text, like guidelines)
-
-**Decision:** Test both in pilot, compare retrieval quality
-
-### Agent Integration Logic
-
-**Trigger:** Automatic when contextually relevant (agent decides)
-
-**Contextual Relevance Algorithm (TBD - refine during implementation):**
-```python
-# Pseudocode for agent decision logic
-if query_explicitly_requests_products:  # Keywords: "producten", "aanbevelingen", "diensten"
-    retrieve_products(query, limit=3, threshold=0.5)  # Lower threshold for explicit requests
-elif semantic_similarity > 0.75:  # High relevance threshold
-    retrieve_products(query, limit=3)
-else:
-    # No products shown
-    pass
-```
-
-**Output Format:**
-- Top 3 products maximum per response
-- Separate section in response (not inline with guidelines)
-- Include: name, brief description, URL, relevance reasoning (in Dutch)
+**Key Requirements:**
+- ✅ Ignore header/footer elements (use `main` or `.products-grid` selectors)
+- ✅ Click into each product page for full description (not just listing preview)
+- ✅ Extract: name, description, price, canonical URL
+- ✅ Handle JavaScript-rendered content (Crawl4AI handles this automatically)
 
 ---
 
-## Implementation Plan (REVISED - 8-12 hours with pilot testing)
+#### 2. Interventie Wijzer CSV (Secondary Source - Problem Mappings)
 
-### Phase 0: Database Inspection & Schema Analysis (30 min)
+**File:** `docs/features/FEAT-004_product-catalog/Intervention_matrix.csv`
+**Structure:** 33 rows with problem-to-product mappings
 
-**Objective:** Understand actual database structure before writing ingestion code
+| Column | Description | Example |
+|--------|-------------|---------|
+| `Probleem` | Problem description (Dutch) | "Mijn werknemer heeft burn-out klachten" |
+| `Category` | Category label | "Verbetering belastbaarheid" |
+| `Link interventie` | **IGNORE** (old URLs) | ~~https://vitaalondernemen.interventieaanvragen.nl/...~~ |
+| `Soort interventie` | Product name | "Multidisciplinaire burnout aanpak" |
 
-**Steps:**
-1. Add `NOTION_PRODUCTS_DATABASE_ID=29dedda2a9a081409224e46bd48c5bc6` to `.env`
-2. Write quick script to inspect Notion database:
-   - Query total product count
-   - Query products where `visible=true` (or similar filter)
-   - Fetch 3-5 sample products to inspect field formats
-   - Check for NULL/missing values in required fields
-3. Document findings in implementation notes
+**CSV Parsing Strategy:**
+```python
+# ingestion/parse_interventie_csv.py
+import csv
+from fuzzywuzzy import fuzz
+
+def parse_interventie_csv() -> List[Dict[str, Any]]:
+    """
+    Parse Intervention_matrix.csv and extract problem-product mappings.
+
+    Returns:
+        [{"product_name": str, "problems": [str], "category": str}, ...]
+    """
+    mappings = {}  # product_name → {"problems": [], "category": str}
+
+    with open("docs/features/FEAT-004_product-catalog/Intervention_matrix.csv") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            product_name = row["Soort interventie"].strip()
+            problem = row["Probleem"].strip()
+            category = row["Category"].strip()
+
+            # Aggregate problems by product (many-to-one relationship)
+            if product_name not in mappings:
+                mappings[product_name] = {"problems": [], "category": category}
+            mappings[product_name]["problems"].append(problem)
+
+    return [
+        {"product_name": name, **data}
+        for name, data in mappings.items()
+    ]
+
+def fuzzy_match_products(csv_products: List[Dict],
+                         portal_products: List[Dict],
+                         threshold: float = 0.9) -> List[Dict]:
+    """
+    Fuzzy match CSV products to portal products.
+
+    Args:
+        csv_products: From parse_interventie_csv()
+        portal_products: From scrape_all_products()
+        threshold: Minimum similarity score (0.9 = 90%)
+
+    Returns:
+        List of matches with portal product enriched with CSV data
+    """
+    matched = []
+    unmatched = []
+
+    for csv_prod in csv_products:
+        csv_name = normalize_product_name(csv_prod["product_name"])
+        best_match = None
+        best_score = 0
+
+        for portal_prod in portal_products:
+            portal_name = normalize_product_name(portal_prod["name"])
+            score = fuzz.ratio(csv_name, portal_name) / 100.0
+
+            if score > best_score:
+                best_score = score
+                best_match = portal_prod
+
+        if best_score >= threshold:
+            # Enrich portal product with CSV data
+            best_match["metadata"] = {
+                "problem_mappings": csv_prod["problems"],
+                "csv_category": csv_prod["category"]
+            }
+            matched.append(best_match)
+        else:
+            unmatched.append(csv_prod["product_name"])
+
+    # Log unmatched for manual review
+    if unmatched:
+        print(f"⚠️  Unmatched CSV products ({len(unmatched)}): {unmatched}")
+
+    return matched
+
+def normalize_product_name(name: str) -> str:
+    """
+    Normalize product names for fuzzy matching.
+
+    Examples:
+    - "Herstelcoaching" → "herstelcoaching"
+    - "Bedrijfsmaatschappelijk Werk" → "bedrijfsmaatschappelijk werk"
+    """
+    return name.lower().strip()
+```
+
+**Key Requirements:**
+- ✅ Parse 33 CSV rows into problem-product mappings
+- ✅ Ignore CSV URLs (old/irrelevant)
+- ✅ Use fuzzy matching (≥0.9 threshold) to match CSV → portal products
+- ✅ Log unmatched products for manual review
+- ✅ Store problems as array in `metadata.problem_mappings`
+
+---
+
+### Database Schema
+
+**Table Schema** (from Phase 1-2, `sql/evi_schema_additions.sql`):
+
+```sql
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    price TEXT,  -- NEW: Price field from portal scraping
+    url TEXT NOT NULL,  -- Canonical URL from portal.evi360.nl (source of truth)
+    category TEXT,  -- From portal OR CSV category
+    embedding vector(1536),  -- OpenAI text-embedding-3-small
+    metadata JSONB DEFAULT '{}',  -- Contains problem_mappings, csv_category
+    source TEXT DEFAULT 'portal',  -- Changed from 'notion' to 'portal'
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_products_embedding ON products
+    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_products_url ON products(url);
+CREATE INDEX idx_products_metadata ON products USING GIN(metadata);
+
+-- Updated trigger
+CREATE TRIGGER update_products_updated_at
+    BEFORE UPDATE ON products
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+```
+
+**Changes from Existing Schema:**
+- ✅ Added `price TEXT` field (from portal scraping)
+- ✅ Made `url TEXT NOT NULL` (canonical URLs always present)
+- ✅ Changed `source` default from `'notion'` to `'portal'`
+- ❌ **REMOVED** `subcategory TEXT` (not needed)
+- ❌ **REMOVED** `compliance_tags TEXT[]` (not in scope)
+- ❌ **REMOVED** `idx_products_compliance_tags` index
+
+**Metadata Field Structure:**
+```json
+{
+  "problem_mappings": [
+    "Mijn werknemer heeft psychische klachten",
+    "Mijn werknemer heeft burn-out klachten"
+  ],
+  "csv_category": "Verbetering belastbaarheid"
+}
+```
+
+---
+
+**SQL Function** (updated for hybrid search):
+
+```sql
+CREATE OR REPLACE FUNCTION search_products(
+    query_embedding vector(1536),
+    query_text TEXT,
+    match_limit INT DEFAULT 5
+)
+RETURNS TABLE (
+    product_id UUID,
+    name TEXT,
+    description TEXT,
+    price TEXT,
+    url TEXT,
+    category TEXT,
+    similarity FLOAT,
+    metadata JSONB
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        p.id,
+        p.name,
+        p.description,
+        p.price,
+        p.url,
+        p.category,
+        -- Hybrid similarity: 70% vector + 30% text search
+        (0.7 * (1 - (p.embedding <=> query_embedding)) +
+         0.3 * ts_rank(to_tsvector('dutch', p.description),
+                       plainto_tsquery('dutch', query_text))) AS similarity,
+        p.metadata
+    FROM products p
+    ORDER BY similarity DESC
+    LIMIT match_limit;
+END;
+$$;
+```
+
+**Changes from Existing Function:**
+- ✅ Hybrid search: 70% vector + 30% Dutch full-text search
+- ✅ Added `price` field to return
+- ✅ Removed `compliance_tags` return field
+- ✅ Removed `compliance_tags_filter` parameter (not in scope)
+
+---
+
+### Data Models
+
+**Updated Models** (`agent/models.py` - needs updates):
+
+```python
+class EVIProduct(BaseModel):
+    """EVI 360 intervention product from portal.evi360.nl"""
+    id: Optional[UUID] = None
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(..., min_length=10)
+    price: Optional[str] = Field(None, description="Price from portal scraping")
+    url: str = Field(..., description="Canonical URL from portal.evi360.nl (required)")
+    category: Optional[str] = None
+    embedding: Optional[List[float]] = None  # 1536-dim vector
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Contains problem_mappings (list) and csv_category (str)"
+    )
+    source: str = "portal"  # Changed from "notion"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    # Removed fields:
+    # - subcategory (not needed)
+    # - compliance_tags (out of scope)
+
+class ProductSearchResult(BaseModel):
+    """Product search result from hybrid search."""
+    product_id: UUID
+    name: str
+    description: str
+    price: Optional[str]
+    url: str  # Required (canonical URL)
+    category: Optional[str]
+    similarity: float  # Hybrid similarity (70% vector + 30% text)
+    metadata: Dict[str, Any]  # Contains problem_mappings, csv_category
+
+    # Removed fields:
+    # - compliance_tags (out of scope)
+```
+
+**Embedding Strategy:**
+- **What to embed:** `description + "\n\n" + "\n".join(problem_mappings)`
+- **Chunking:** **NO CHUNKING** - Each product = 1 single embedding (entire text embedded as-is)
+- **Rationale:** Products are already atomic units; concatenating problems with description improves semantic matching
+- **Example text to embed:**
+  ```
+  "Multidisciplinaire begeleiding door fysiotherapeut en psycholoog voor complexe burn-out gevallen.
+
+  Mijn werknemer heeft burn-out klachten
+  Het gaat slecht met mijn werknemer, hoe krijgt hij gericht advies?"
+  ```
+- **Dimension:** 1536 (OpenAI text-embedding-3-small)
+- **Storage:** 1 embedding per product in `products.embedding` field (vector(1536))
+
+---
+
+## Implementation Plan
+
+**7-Step Implementation Flow:**
+
+```
+Step 1: Scrape portal.evi360.nl/products
+  → Extract ~60 products (name, description, price, URL)
+
+Step 2: Parse Intervention_matrix.csv
+  → Extract 33 problem-product mappings with categories
+
+Step 3: Match CSV products to portal products
+  → Method: Fuzzy matching (≥0.9 threshold)
+
+Step 4: Enrich portal products with CSV data
+  → Add problem_mappings and csv_category to metadata
+
+Step 5: Generate embeddings
+  → Embed: description + problems concatenated
+
+Step 6: Insert into products table
+  → Upsert by: name + URL + description
+
+Step 7: Agent calls search_products(query)
+  → Search strategy: Hybrid (70% vector + 30% Dutch text)
+```
+
+---
+
+### Phase 1: Portal Scraping with Crawl4AI (4 hours)
+
+**Tasks:**
+1. Create `ingestion/scrape_portal_products.py` module
+2. Implement `scrape_all_products()` using Crawl4AI AsyncWebCrawler
+3. Extract product listing from /products page (ignore header/footer)
+4. Click into each of ~60 product pages
+5. Extract: name, description, price, category, canonical URL
+6. Handle errors gracefully (retry failed scrapes, log issues)
+7. Save to intermediate JSON file for inspection
+8. Test: Verify ~60 products scraped with all fields
 
 **Deliverables:**
-- Database schema doc with field formats
-- Product count (total vs. visible)
-- Decision on filter strategy (visible=true only, or all products?)
+- `ingestion/scrape_portal_products.py`
+- CLI command: `python3 -m ingestion.scrape_portal_products`
+- Output: `portal_products.json` (scraped data)
+
+**Example Usage:**
+```bash
+python3 -m ingestion.scrape_portal_products
+# Output: Scraped 58 products from portal.evi360.nl
+#         Saved to: portal_products.json
+#         Failed: 2 products (timeouts, will retry)
+```
 
 ---
 
-### Phase 1: Pilot Test - Product Ingestion (2-3 hours)
+### Phase 2: CSV Parsing & Fuzzy Matching (2 hours)
 
-**Objective:** Validate retrieval quality with small subset before full ingestion
+**Tasks:**
+1. Create `ingestion/parse_interventie_csv.py` module
+2. Parse `Intervention_matrix.csv` (33 rows)
+3. Extract problem descriptions, categories, product names
+4. Aggregate problems by product (many-to-one)
+5. Implement fuzzy matching (≥0.9 threshold) using fuzzywuzzy
+6. Match CSV products to portal products from Phase 1
+7. Log unmatched products for manual review
+8. Test: Verify ≥80% match rate
 
-**Step 1: Create Dedicated Product Ingestion Script**
-- **File:** `ingestion/ingest_products.py` (NEW - don't reuse guidelines ingestion)
-- Create `NotionProductIngestion` class (pattern inspired by NotionToMarkdown)
-- Implement field mapping based on Phase 0 findings
-- Add data validation (skip products with missing description/URL)
+**Deliverables:**
+- `ingestion/parse_interventie_csv.py`
+- Functions: `parse_interventie_csv()`, `fuzzy_match_products()`
+- Matching report showing successful/failed matches
 
-**Step 2: Ingest Pilot Subset (10-20 products)**
-- Select diverse products (mix of types: Fysio, Juridisch, etc.)
-- Test 3 embedding strategies:
-  - A: Description only
-  - B: Name + description
-  - C: Name + description + type + tags
-- Insert into products table with metadata flag `"pilot_test": true`
+**Example Output:**
+```bash
+python3 -m ingestion.parse_interventie_csv
+# Output: Parsed 33 product-problem mappings from CSV
+#         Fuzzy matched: 27/33 products (82% success rate)
+#         Unmatched: ["Adviesgesprek P&O Adviseur", "Inzet vertrouwenspersoon", ...]
+#         (Unmatched products logged for manual mapping)
+```
 
-**Step 3: Test Retrieval Quality**
-- **File:** `tests/ingestion/test_product_retrieval.py` (NEW)
-- Create 10-15 test queries representing real user needs:
-  - "bedrijfsfysiotherapie" (should match physiotherapy products)
-  - "stress en burn-out" (should match mental health services)
-  - "juridisch advies" (should match legal services)
-  - "fysieke klachten" (should match ergonomics products)
-- For each embedding strategy, query products and check:
-  - Are top 3 products relevant?
-  - What are similarity scores?
-  - Which strategy performs best?
+---
 
-**Step 4: Measure Quality & Decide**
-- **Manual validation:** Spot-check top 3 results for each query
-- **Metrics:** Average similarity score, relevance rate
-- **Decision point:**
-  - ✅ If quality acceptable (>70% relevance): Proceed to full ingestion with winning strategy
-  - ❌ If quality poor: Iterate on embedding strategy or data enrichment
+### Phase 3: Product Enrichment & Embedding (2.5 hours)
+
+**Tasks:**
+1. Create `ingestion/ingest_products.py` module (orchestrator)
+2. Enrich portal products with CSV data (add problem_mappings to metadata)
+3. Generate embeddings: `description + "\n\n" + "\n".join(problem_mappings)`
+4. Upsert products into database (by name + URL + description)
+5. Update `agent/models.py` (remove subcategory, compliance_tags, add price)
+6. Update SQL schema (add price field, remove compliance_tags index)
+7. Test: Verify all products have embeddings and metadata
 
 **Deliverables:**
 - `ingestion/ingest_products.py`
-- Pilot test results document
-- Winning embedding strategy selected
+- Updated `agent/models.py`
+- Migration script for schema changes (if needed)
+
+**Example Usage:**
+```bash
+python3 -m ingestion.ingest_products
+# Output: Processing 58 portal products...
+#         Enriched 27 products with CSV problem mappings
+#         Generating embeddings (description + problems)...
+#         Ingested 58 products into database
+#         Success: 58, Failed: 0
+#         Average embedding length: 450 tokens
+```
 
 ---
 
-### Phase 2: Full Product Ingestion (1-2 hours)
+### Phase 4: Hybrid Search Tool Implementation (2 hours)
 
-**Conditional:** Only proceed if Phase 1 pilot test successful
+**Tasks:**
+1. Update `search_products()` SQL function for hybrid search (70% vector + 30% text)
+2. Create `search_products_tool()` in `agent/tools.py`
+3. Generate embedding for query using OpenAI
+4. Call hybrid search SQL function
+5. Format results as List[Dict] for LLM (include price, URL, similarity)
+6. Register tool with `@specialist_agent.tool` decorator
+7. Test: Verify hybrid search returns relevant products
 
-**Steps:**
-1. Update ingestion script with winning embedding strategy from pilot
-2. Add filter logic (e.g., `visible=true` if decided in Phase 0)
-3. Run full ingestion: `python3 -m ingestion.ingest_products --full`
-4. Validate:
-   - Product count matches expected (~100 or filtered count)
-   - 100% products have embeddings (no NULLs)
-   - Sample 5 random products and verify data quality
+**Implementation:**
+```python
+# agent/tools.py
+@specialist_agent.tool
+async def search_products(
+    ctx: RunContext[SpecialistDeps],
+    query: str,
+    limit: int = 3
+) -> List[Dict[str, Any]]:
+    """
+    Search EVI 360 intervention products using hybrid search.
 
-**Deliverables:**
-- ~100 products in database with embeddings
-- Ingestion log with success/error counts
+    Args:
+        query: Search query in Dutch (e.g., "burn-out begeleiding")
+        limit: Max number of products to return (default 3)
+
+    Returns:
+        List of products with name, description, price, url, similarity
+    """
+    # Generate embedding for query
+    embedding = await generate_embedding(query)
+
+    # Call hybrid search function
+    async with ctx.deps.db_pool.acquire() as conn:
+        results = await conn.fetch(
+            "SELECT * FROM search_products($1, $2, $3)",
+            embedding,
+            query,  # For text search component
+            limit
+        )
+
+    # Format for LLM
+    return [
+        {
+            "name": row["name"],
+            "description": row["description"][:200] + "...",  # Truncate
+            "price": row["price"],
+            "url": row["url"],
+            "category": row["category"],
+            "similarity": round(row["similarity"], 2)
+        }
+        for row in results
+    ]
+```
 
 ---
 
-### Phase 3: Agent Tool Integration (2-3 hours)
+### Phase 5: Agent Integration (1.5 hours)
 
-**Step 1: Create Product Search Tool**
-- **File:** `agent/tools.py` (add function)
-- Implement `product_search_tool(query, limit=3)`
-- Generate query embedding
-- Query products table using vector similarity
-- Return top N products
+**Tasks:**
+1. Update `SPECIALIST_SYSTEM_PROMPT` in `agent/specialist_agent.py`
+2. Remove "Geen producten aanbevelen" restriction
+3. Add instruction to call `search_products()` when appropriate
+4. Add output formatting guideline (markdown, Dutch, include pricing)
+5. Test: Agent calls tool and formats products correctly with URLs
 
-**Step 2: Register Tool with Specialist Agent**
-- **File:** `agent/specialist_agent.py` (modify)
-- Add `@specialist_agent.tool` decorator for product search
-- Remove "Geen producten aanbevelen" restriction
-- Update prompt: products shown when contextually relevant
+**System Prompt Addition:**
+```python
+# agent/specialist_agent.py (add to SPECIALIST_SYSTEM_PROMPT)
 
-**Step 3: Extend Response Model**
-- **File:** `agent/specialist_agent.py` or `agent/models.py`
-- Add `product_recommendations: List[ProductRecommendation]` to response
+"""
+**Product Recommendations:**
 
-### Phase 3: Testing & Validation (1-2 hours)
+When the user asks about EVI 360 interventions or workplace solutions, call the search_products() tool.
 
-**Step 1: Database Validation**
-- Verify products table populated
-- Check all products have embeddings
-- Test vector search directly
+**When to call search_products():**
+- User asks about interventions (e.g., "Welke interventies zijn er voor burn-out?")
+- User needs product recommendations (e.g., "Wat kan EVI 360 bieden?")
+- After citing guidelines, suggest related products
 
-**Step 2: Agent Testing**
-- Test: "Welke producten zijn er voor bedrijfsfysiotherapie?"
-- Test: "Wat zijn de richtlijnen voor stress en burn-out?" (should show guidelines + maybe products)
-- Verify top 3 products returned
+**Output Format:**
+Format products in Dutch with markdown:
 
-**Step 3: Edge Cases**
-- Query with no relevant products → no products returned
-- Guidelines-only query → products optional
+Relevante EVI 360 interventies:
+
+1. **[Product Name]** ([Price])
+   [Description in 1-2 sentences]
+   [URL]
+
+Example:
+1. **Herstelcoaching** (€2.500 - €3.500)
+   6-9 maanden traject voor burn-out herstel met arbeidsdeskundige.
+   https://portal.evi360.nl/products/15
+"""
+```
+
+---
+
+### Phase 6: Testing & Validation (2 hours)
+
+**Tasks:**
+1. Create test suite in `tests/unit/test_product_ingest.py` (use existing stubs)
+2. Test ingestion, URL scraping, search tool
+3. Integration test: End-to-end query → product search → response
+4. Manual testing: 10 test queries, verify relevance
+5. Document results in validation report
+
+**Test Queries:**
+1. "Burn-out begeleiding"
+2. "Fysieke klachten door tilwerk"
+3. "Conflict met leidinggevende"
+4. "Lange termijn verzuim"
+5. "Werkdruk problemen"
+6. "Zwangerschap en werk"
+7. "Psychische klachten"
+8. "Leefstijl coaching"
+9. "Re-integratie traject"
+10. "Bedrijfsmaatschappelijk werk"
+
+**Acceptance:**
+- ≥7/10 queries return relevant products
+- All products have working URLs
+- Agent formats output correctly
+
+---
+
+## User Experience Examples
+
+### Example 1: Burn-out Query
+
+**User:** "Werknemer heeft burn-out klachten, 6 maanden verzuim"
+
+**Agent Response:**
+```
+Volgens de NVAB Richtlijn Overspanning en burn-out is het belangrijk om...
+[Guidelines section]
+
+Relevante EVI 360 interventies:
+
+1. **Herstelcoaching**
+   Gestructureerd traject van 6-9 maanden met arbeidsdeskundige, gericht op veerkracht
+   en geleidelijke werkhervatting bij burn-out.
+   https://portal.evi360.nl/products/15
+
+2. **Multidisciplinaire Burnout Aanpak**
+   Gecombineerde begeleiding door fysiotherapeut en psycholoog voor complexe burn-out gevallen.
+   https://portal.evi360.nl/products/27
+
+3. **Psychologische Ondersteuning**
+   Diepgaande psychologische begeleiding voor onderliggende factoren.
+   https://portal.evi360.nl/products/9
+```
+
+---
+
+### Example 2: Physical Complaints Query
+
+**User:** "Fysieke klachten door tilwerk"
+
+**Agent Response:**
+```
+Voor fysieke klachten door tilwerk adviseert de NVAB Richtlijn Tillen...
+
+Relevante EVI 360 interventies:
+
+1. **Bedrijfsfysiotherapie**
+   Arbeidsgerichte fysiotherapie voor herstel en preventie van bewegingsklachten.
+   https://portal.evi360.nl/products/8
+
+2. **Werkplekonderzoek**
+   Ergonomisch onderzoek van de werkplek om fysieke belasting te verminderen.
+   https://portal.evi360.nl/products/22
+
+3. **Vroegconsult Arbeidsfysiotherapeut**
+   Snelle beoordeling van belastbaarheid en advies over aanpassingen.
+   https://portal.evi360.nl/products/11
+```
 
 ---
 
 ## Testing Strategy
 
-**Ingestion:**
-- Verify ~100 products from Notion
-- Check embeddings generated (no NULLs)
-- Spot-check category/tags mapping
+### Unit Tests (18 tests - use existing stubs)
 
-**Search Quality:**
-- Query "bedrijfsfysiotherapie" → physiotherapy products
-- Query "stress" → "Bedrijfsmaatschappelijk werk"
-- Query "fysieke klachten" → "Bedrijfsfysiotherapie"
+**File:** `tests/unit/test_product_ingest.py`
 
-**Agent Integration:**
-- Product-focused queries return top 3 products
-- Guideline queries don't force products
-- Products include name, description, URL
+1. **Portal Scraping (Crawl4AI)**
+   - ✅ Scrape product listing page
+   - ✅ Extract product URLs (ignore header/footer)
+   - ✅ Click into individual product pages
+   - ✅ Parse product details (name, description, price, URL)
+   - ✅ Handle scraping errors gracefully
 
----
+2. **CSV Parsing & Fuzzy Matching**
+   - ✅ Parse Intervention_matrix.csv
+   - ✅ Extract problem-product mappings
+   - ✅ Aggregate problems by product (many-to-one)
+   - ✅ Fuzzy match CSV → portal products (≥0.9 threshold)
+   - ✅ Log unmatched products
 
-## Constraints & Assumptions
+3. **Product Enrichment**
+   - ✅ Enrich products with problem_mappings metadata
+   - ✅ Generate embeddings (description + problems)
+   - ✅ Handle products without CSV matches
 
-### Technical Constraints
-- Must use existing products table schema (cannot modify for MVP)
-- Must create dedicated product ingestion script (cannot directly reuse guidelines ingestion)
-- Specialist agent framework limits (tool registration, response format)
-- Use vector-only search (no hybrid for MVP)
-- Option B embedding only (name + description)
+4. **Database Operations**
+   - ✅ Insert new products
+   - ✅ Update existing products (upsert)
+   - ✅ Handle duplicate names
 
-### Business Constraints
-- **Timeline:** 6-9 hours total (reduced from 8-12 - simpler approach, no pilot phase)
-- **Data Source:** Notion database only (no web scraping for MVP)
-- **Scope:** Basic product search only (no complex recommendations algorithm)
-- **Quality optimization:** Deferred to future phase
+5. **Hybrid Search Tool**
+   - ✅ Generate query embedding
+   - ✅ Call hybrid search SQL function
+   - ✅ Format results for LLM (with price)
+   - ✅ Return top N products
 
-### Assumptions ✅ VALIDATED
-- ✅ Notion database has ~60 products (confirmed by user)
-- ✅ Existing Notion API token has access to products database
-- ✅ Products don't change frequently (monthly re-ingestion acceptable)
-- ✅ Agent prompt modifications won't break existing guideline functionality
-- ✅ Option B embedding (name + description) will provide acceptable search quality
+### Integration Tests (6 tests)
 
----
+**File:** `tests/integration/test_product_ingestion_flow.py`
 
-## Open Questions ✅ RESOLVED (2025-10-31)
+1. ✅ End-to-end: Portal scraping → CSV matching → Database → Hybrid search
+2. ✅ Agent calls search_products() tool
+3. ✅ Agent formats products in response
+4. ✅ Products include working URLs
+5. ✅ Search latency <500ms
 
-*All critical uncertainties resolved via user clarification:*
+### Manual Testing (10 scenarios)
 
-### 1. Notion Database Schema ✅ RESOLVED
-**Known fields:** id, name, type, tags, visible, URL, price_type
-
-**RESOLVED ANSWERS:**
-- ✅ Q1.1: **Product count:** ~60 products (not ~100 as initially estimated)
-- ✅ Q1.2: **Tags format:** Multi-select (comma separated)
-- ✅ Q1.3: **Type values:** Select field with "service" or "product" (just 2 values!)
-- ✅ Q1.4: **Missing fields:** Allow empty fields EXCEPT for name (required)
-- ✅ Q1.5: **Filter strategy:** Ingest all products (no `visible` filtering needed)
-
-### 2. Embedding Strategy ✅ RESOLVED
-**DECISION:** Use Option B - Name + description (concatenated)
-
-**Rationale:** "Keep it simple and effective for now"
-
-**Implementation:**
-```python
-embedding_text = f"{product['name']}\n\n{product['description']}"
-embedding = generate_embedding(embedding_text)
-```
-
-### 3. Search Strategy ✅ RESOLVED
-**DECISION:** Vector-only search (no hybrid)
-
-**Rationale:** Simplicity - don't add Dutch full-text search complexity for MVP
-
-**Implementation:** Use existing `search_products()` SQL function (vector similarity only)
-
-### 4. Agent Integration Logic ✅ RESOLVED
-**DECISION:** Use specialist prompt as-is, agent decides when to call products
-
-**Rationale:** "This feature is more focused on just ingesting and integrating the product catalogue... the specialist agent can call it whenever it needs"
-
-**Optimization:** Will improve agent decision logic AFTER first phases complete
-
-### 5. Data Validation & Error Handling ✅ RESOLVED
-**VALIDATION RULES:**
-- ✅ **Required fields:** name, URL, description
-- ✅ **Skip if missing:** Don't ingest products missing any required field
-- ✅ **Empty fields OK:** All other fields can be empty/NULL
-- ✅ **API failures:** Retry on embedding generation failure
-- ✅ **Logging:** Log skipped products with reason
-
-**Implementation:**
-```python
-def validate_product(product):
-    if not product.get('name'):
-        return False, "Missing required field: name"
-    if not product.get('URL'):
-        return False, "Missing required field: URL"
-    if not product.get('description'):
-        return False, "Missing required field: description"
-    return True, "Valid"
-```
-
-### 6. Quality Optimization Strategy ✅ RESOLVED
-**DECISION:** Two-phase approach
-
-**Phase 1 (This feature):** Get it working
-- Ingest products with Option B embedding
-- Basic integration with agent
-- Vector-only search
-
-**Phase 2 (Future feature):** Optimize quality
-- Refine similarity thresholds
-- Improve agent decision logic
-- Consider hybrid search if needed
-- Test different embedding strategies
-
-**Rationale:** "Yes we should optimise the quality... but we will optimise that once the first phases are done"
+1. Query: "Burn-out" → Expect: Herstelcoaching, Psychologische ondersteuning
+2. Query: "Fysieke klachten" → Expect: Bedrijfsfysiotherapie, Werkplekonderzoek
+3. Query: "Conflict" → Expect: Mediation, Conflictbemiddeling
+4. Query: "Verzuim" → Expect: Re-integratietraject, Herstelcoaching
+5. Query: "Werkdruk" → Expect: Coaching, Werkdrukanalyse
+6. Query: "Leefstijl" → Expect: Leefstijlprogramma's, Gewichtsconsulent
+7. Query: "Zwangerschap" → Expect: Arbeidsdeskundige advies
+8. Query: "Psychische klachten" → Expect: Psychologische ondersteuning, BMW
+9. Query: "Loopbaan" → Expect: Loopbaanbegeleiding, Executive coaching
+10. Query: "Onbekende term xyz" → Expect: Graceful fallback (no products or best guess)
 
 ---
 
-## Implementation Decisions Summary
+## Dependencies & Blockers
 
-| Decision | Value | Rationale |
-|----------|-------|-----------|
-| **Product count** | ~60 products | Confirmed by user |
-| **Embedding strategy** | Option B: Name + description | Simple & effective |
-| **Search method** | Vector-only | No hybrid complexity for MVP |
-| **Agent integration** | Specialist prompt decides | Focus on ingestion first |
-| **Validation rules** | Skip if missing name/URL/description | Clear error handling |
-| **Retry logic** | Retry on API failures | Resilience |
-| **Empty fields** | Allow (except name) | Flexible data handling |
-| **Quality optimization** | Defer to Phase 2 | Get working first |
+### Dependencies (Must Be Complete)
 
----
+✅ **FEAT-002:** Notion Guidelines Integration - Database schema ready
+✅ **FEAT-003:** Specialist Agent - Agent system functional with tool support
+✅ **Infrastructure:** PostgreSQL + pgvector installed and configured
+✅ **Database Schema:** `products` table exists (needs price field added)
+✅ **Intervention_matrix.csv:** File present in `docs/features/FEAT-004_product-catalog/`
 
-## Simplified Implementation Plan
+### Blockers (Critical Inputs Needed)
 
-**No pilot phase needed** - decisions made up front, Option B embedding is the approach.
+**Technical Prerequisites:**
+1. **Crawl4AI installed** (`pip install crawl4ai`)
+2. **fuzzywuzzy installed** (`pip install fuzzywuzzy python-Levenshtein`)
+3. **OpenAI API key** (for embeddings, ~$0.30 for 60 products × 1536 dims)
+4. **Network access to portal.evi360.nl** (for web scraping)
 
-### Phase 0: Database Inspection (15 min - simplified)
-- Connect to Notion products database
-- Confirm ~60 product count
-- Inspect 2-3 sample products to verify field formats
-- **Deliverable:** Quick validation that schema matches expectations
-
-### Phase 1: Product Ingestion (3-4 hours)
-1. Create `ingestion/ingest_products.py`
-2. Implement field mapping: tags (comma-separated), type (service/product)
-3. Implement validation: skip if missing name/URL/description
-4. Generate embeddings: Option B (name + description concatenated)
-5. Insert into products table
-6. Add retry logic for API failures
-7. Log skipped products with reasons
-
-**Deliverable:** ~60 products ingested with embeddings
-
-### Phase 2: Agent Tool Integration (2-3 hours)
-1. Create `product_search_tool()` in `agent/tools.py`
-2. Register tool with specialist agent
-3. Update agent prompt to enable products
-4. Test: Agent can retrieve products when needed
-
-**Deliverable:** Agent can call products via tool
-
-### Phase 3: Testing & Validation (1-2 hours)
-1. Database validation (product count, embeddings)
-2. Manual testing with 10+ queries
-3. Validate agent integration works
-4. Document any issues for Phase 2 optimization
-
-**Deliverable:** Feature working end-to-end
-
-**TOTAL ESTIMATED TIME:** 6-9 hours (reduced from 8-12 hours)
+**No User Input Required:**
+- ❌ No Notion database ID needed (using CSV + portal scraping)
+- ❌ No Notion API token needed (descoped)
+- ✅ Intervention_matrix.csv already provided
 
 ---
 
-## Next Steps
+## Risks & Mitigations
 
-1. ✅ Exploration complete (PRD updated with clarifications)
-2. ⏭️ Run `/plan FEAT-004` to create detailed planning documentation:
-   - architecture.md (implementation approach, data flow)
-   - acceptance.md (testable acceptance criteria)
-   - testing.md (test strategy and stubs)
-   - manual-test.md (human validation checklist)
-3. ⏭️ Implementation (7-10 hours)
-4. ⏭️ Testing & validation
-5. ⏭️ Commit with `/commit FEAT-004`
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| **Portal.evi360.nl HTML changes** | High | Medium | Document selectors with comments, add scraping tests, version Crawl4AI |
+| **Product name mismatch (CSV vs portal)** | Medium | High | Fuzzy matching (≥0.9), log unmatched for manual review, fallback to exact match |
+| **CSV contains outdated products** | Low | Medium | Portal is source of truth, CSV only adds metadata, won't break if mismatch |
+| **Embedding cost exceeds budget** | Low | Low | Estimate: $0.0001/1K tokens × 450 avg tokens × 60 products = ~$0.30 total |
+| **Search relevance poor (<70%)** | Medium | Medium | Test with 10 queries, iterate on embedding strategy (description + problems validated) |
+| **Crawl4AI fails or rate-limited** | High | Low | Add retry logic, exponential backoff, cache scraped results to JSON |
 
 ---
 
-**Last Updated:** 2025-10-31 (Exploration Phase Complete - All Uncertainties RESOLVED)
-**Status:** ✅ Ready for Planning - Run `/plan FEAT-004`
-**Estimated Effort:** 6-9 hours (simplified from 8-12 hours - no pilot phase needed)
+## Open Questions
 
-**Key Decisions Made (2025-10-31 Final Update):**
-- ✅ Product count: ~60 products (not ~100)
-- ✅ Embedding: Option B (name + description concatenated)
-- ✅ Search: Vector-only (no hybrid)
-- ✅ Validation: Skip if missing name/URL/description, retry on API failures
-- ✅ Agent: Use specialist prompt as-is, agent decides when to call products
-- ✅ Notion fields confirmed: tags (multi-select comma-separated), type (service/product)
-- ✅ Quality optimization: Defer to future phase, focus on working integration first
+**All Resolved:**
+1. ~~Notion Database ID~~ → **Resolved:** Using portal scraping + CSV, no Notion needed
+2. ~~Web Scraping Frequency~~ → **Resolved:** Manual trigger only (`python3 -m ingestion.ingest_products --refresh`)
+3. ~~Product Deprecation~~ → **Resolved:** Portal is source of truth, inactive products won't appear in scraping
+4. ~~Embedding Model~~ → **Resolved:** text-embedding-3-small (1536 dim) for cost efficiency
 
-**Simplified Approach:**
-- No pilot testing phase (decisions made up front)
-- Straightforward ingestion with clear validation rules
-- Simple vector search
-- Agent integration via tool registration
-- Total time reduced to 6-9 hours
+---
+
+## Acceptance Criteria (Summary)
+
+**FEAT-004 is COMPLETE when:**
+
+1. ✅ ~60 products scraped from portal.evi360.nl with Crawl4AI
+2. ✅ 100% of products have canonical portal.evi360.nl URLs (source of truth)
+3. ✅ ≥80% of CSV products fuzzy-matched to portal products
+4. ✅ ≥25 products enriched with problem_mappings in metadata
+5. ✅ 100% of products have embeddings (description + problems concatenated)
+6. ✅ Hybrid search SQL function updated (70% vector + 30% Dutch text)
+7. ✅ `search_products()` tool registered with specialist agent (returns price + URL)
+8. ✅ Agent can call tool and format products in Dutch markdown with pricing
+9. ✅ Search latency <500ms (95th percentile)
+10. ✅ Test suite passes (18 unit + 6 integration tests)
+11. ✅ Manual testing shows ≥70% relevance (7/10 queries)
+12. ✅ Documentation updated (this PRD, CHANGELOG)
+
+---
+
+## Timeline Estimate
+
+**Total Effort:** 14 hours (1.75 working days)
+
+- Phase 1 (Portal Scraping with Crawl4AI): 4 hours
+- Phase 2 (CSV Parsing & Fuzzy Matching): 2 hours
+- Phase 3 (Product Enrichment & Embedding): 2.5 hours
+- Phase 4 (Hybrid Search Tool): 2 hours
+- Phase 5 (Agent Integration): 1.5 hours
+- Phase 6 (Testing & Validation): 2 hours
+
+**Scope Expansion:** Original PRD estimated 10 hours for "Notion + basic search." This updated estimate reflects the **merged FEAT-011 scope** (CSV integration, problem mappings, hybrid search) and **portal scraping complexity** (Crawl4AI, clicking into pages).
+
+---
+
+## Future Enhancements (Post-MVP)
+
+**Deferred to FEAT-012:**
+- Two-stage search protocol (candidate generation + LLM ranking)
+- Product-guideline linking at search time
+- Weighted scoring (impact, fit, guidelines, feasibility)
+- Canonicalization & deduplication
+- Query expansion with LLM (using interventie wijzer keywords)
+
+**Future Phases (Beyond FEAT-012):**
+- Real-time portal monitoring (automated re-scraping on schedule)
+- Product images and multimedia
+- User feedback (thumbs up/down)
+- A/B testing different search strategies
+- Multi-language support (English, German)
+
+---
+
+## Appendix
+
+### Product Catalog Examples (From Portal Scraping)
+
+**Example 1: Herstelcoaching** (from portal.evi360.nl)
+- Name: "Herstelcoaching"
+- Price: "€2.500 - €3.500"
+- Category: "Coaching"
+- Description: "6-9 maanden traject voor werknemers met burn-out of overspanning..."
+- URL: https://portal.evi360.nl/products/15
+- Problem Mappings: ["Mijn werknemer heeft burn-out klachten", "Het gaat slecht met mijn werknemer"]
+- CSV Category: "Verbetering belastbaarheid"
+
+**Example 2: Bedrijfsfysiotherapie** (from portal.evi360.nl)
+- Name: "Bedrijfsfysiotherapie"
+- Price: "€150 - €200 per sessie"
+- Category: "Fysio"
+- Description: "Arbeidsgerichte fysiotherapie voor preventie en behandeling van bewegingsklachten..."
+- URL: https://portal.evi360.nl/products/8
+- Problem Mappings: ["Mijn werknemer heeft fysieke klachten"]
+- CSV Category: "Verbetering belastbaarheid"
+
+### References
+
+- **Archived Original PRD:** `docs/features/FEAT-004_product-catalog/archive/prd-v1-broad-scope.md`
+- **Interventie Wijzer CSV:** `docs/features/FEAT-004_product-catalog/Intervention_matrix.csv`
+- **FEAT-012 PRD:** `docs/features/FEAT-012_two-stage-search/prd.md` (two-stage search + linking)
+- **Database Schema:** `sql/evi_schema_additions.sql` (needs price field addition)
+- **Data Models:** `agent/models.py` (needs compliance_tags/subcategory removal, price addition)
+
+---
+
+**Document Version:** 3.0 (Merged FEAT-011 Scope)
+**Last Updated:** 2025-11-03
+**Major Changes:**
+- Merged FEAT-011 (Interventie Wijzer integration) into FEAT-004
+- Removed all Notion product ingestion (using portal scraping + CSV)
+- Added Crawl4AI web scraping strategy
+- Added fuzzy matching for CSV-to-portal product mapping
+- Updated to hybrid search (70% vector + 30% Dutch text)
+- Added price field to schema
+- Removed compliance_tags and subcategory
+
+**Status:** Ready for Implementation
+**Next Step:** Run implementation → `/build FEAT-004`
