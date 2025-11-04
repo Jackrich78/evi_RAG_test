@@ -79,25 +79,41 @@ This documentation index provides a comprehensive map of all project documentati
 
 ### Ready for Implementation
 
-#### [FEAT-004: Product Catalog with Interventie Wijzer Integration](features/FEAT-004_product-catalog/) ⭐ MERGED FEAT-011
-**Status:** Planning Complete - Ready for Build
-**Updated:** 2025-11-03 (Merged FEAT-011 scope)
+#### [FEAT-004: Product Catalog with Interventie Wijzer Integration](features/FEAT-004_product-catalog/) ⭐ PLANNING COMPLETE
+**Status:** Ready for Implementation - All Planning Docs Complete
+**Planning Completed:** 2025-11-04
 **Scope:** Portal scraping + CSV problem mappings + hybrid search
 **Dependencies:** FEAT-002 ✅, FEAT-003 ✅
 **Blocks:** FEAT-012
-**Estimated:** 14 hours
+**Estimated:** 14 hours (6 phases)
 **Documents:**
 - [Product Requirements v3](features/FEAT-004_product-catalog/prd.md) - **Merged FEAT-011**
 - [Research Findings](features/FEAT-004_product-catalog/research.md)
-- [Archived v1 Planning](features/FEAT-004_product-catalog/archive/) - Original broad-scope docs
+- [Architecture Decision](features/FEAT-004_product-catalog/architecture.md) ✅ NEW
+- [Acceptance Criteria](features/FEAT-004_product-catalog/acceptance.md) ✅ NEW
+- [Testing Strategy](features/FEAT-004_product-catalog/testing.md) ✅ NEW
+- [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md) ✅ NEW
+- [Implementation Guide](features/FEAT-004_product-catalog/implementation-guide.md) ✅ NEW - **Quick-start roadmap**
 - [Interventie Wijzer Data](features/FEAT-004_product-catalog/Interventiewijzer.md) - 5-step methodology
 - [Intervention Matrix CSV](features/FEAT-004_product-catalog/Intervention_matrix.csv) - 33 problem-intervention mappings
 
+**Test Stubs Generated:**
+- `tests/unit/test_product_ingest.py` - 18 unit test stubs (portal scraping, CSV parsing, enrichment, database, search tool)
+- `tests/integration/test_product_ingestion_flow.py` - 6 integration test stubs (end-to-end flow, agent integration, performance)
+
+**Planning Phase Complete:**
+- ✅ Architecture: 3 options evaluated, portal scraping + CSV enrichment recommended
+- ✅ Acceptance: 13 core criteria + 5 edge cases + 3 non-functional requirements
+- ✅ Testing: 24 test stubs created (18 unit + 6 integration)
+- ✅ Manual Testing: 10 Dutch query scenarios documented
+- ✅ Implementation Guide: 6-phase roadmap with file structure and quick-start instructions
+- ✅ AC.md updated with AC-004-001 through AC-004-402
+
 **Recent Changes:**
-- ✅ **MERGED FEAT-011** into FEAT-004 (scope consolidation)
-- Changed from Notion to portal.evi360.nl web scraping (Crawl4AI)
-- Integrated interventie wijzer CSV (33 problem-product mappings)
-- Fuzzy matching CSV→portal products (≥0.9 threshold)
+- ✅ **PLANNING PHASE COMPLETE** (2025-11-04)
+- All planning documentation created following AI Workflow Starter templates
+- Test stubs generated with TODO comments (ready for Phase 2: Build)
+- Acceptance criteria appended to global AC.md
 - Hybrid search: 70% vector + 30% Dutch text
 - Embedding: 1 product = 1 embedding (NO chunking)
 

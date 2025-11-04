@@ -344,3 +344,47 @@ This file tracks all acceptance criteria across all features in the project. Eac
 ---
 
 **Total Acceptance Criteria:** 17 (FEAT-002) + 35 (FEAT-003) + 20 (FEAT-007) + 23 (FEAT-010) + 34 (FEAT-004) + 20 (FEAT-008 v2) = 149
+
+## FEAT-004: Product Catalog with Interventie Wijzer Integration
+
+### Functional Criteria
+
+- **AC-004-001:** Given portal.evi360.nl/products listing page is accessible, when `python3 -m ingestion.scrape_portal_products` is executed, then ~60 products (55-65 range) are scraped with all required fields populated (name, description, URL)
+- **AC-004-002:** Given products have been scraped from portal.evi360.nl, when products are inserted into the database, then 100% of products have a canonical portal.evi360.nl URL in the format `https://portal.evi360.nl/products/{id}`
+- **AC-004-003:** Given Intervention_matrix.csv contains 33 unique products, when `parse_interventie_csv.py` fuzzy matches CSV products to portal products, then ≥80% (≥27 of 33) CSV products are matched at ≥0.9 similarity threshold
+- **AC-004-004:** Given CSV products are fuzzy-matched to portal products, when products are enriched with metadata, then ≥25 products have `problem_mappings` array in metadata with ≥1 problem each
+- **AC-004-005:** Given products are enriched with problem mappings, when embeddings are generated using description + problems concatenated, then 100% of products have a non-null 1536-dimensional embedding
+- **AC-004-006:** Given products table contains products with embeddings, when `search_products(query_embedding, query_text, limit)` SQL function is called, then function returns products ranked by hybrid similarity (70% vector + 30% Dutch text)
+- **AC-004-007:** Given specialist agent is initialized, when agent tools are registered, then `search_products()` tool is available with correct signature (ctx, query: str, limit: int)
+- **AC-004-008:** Given agent calls `search_products("burn-out", limit=3)`, when agent formats the response, then products are displayed in Dutch markdown: "**[Name]** ([Price])\n[Description]\n[URL]"
+- **AC-004-009:** Given products table has ~60 products with embeddings and IVFFLAT index, when hybrid search query is executed, then search completes in <500ms at 95th percentile (p95)
+- **AC-004-010:** Given 18 unit tests are implemented in `tests/unit/test_product_ingest.py`, when `pytest tests/unit/test_product_ingest.py` is executed, then all 18 tests pass (100% pass rate)
+- **AC-004-011:** Given 6 integration tests are implemented in `tests/integration/test_product_ingestion_flow.py`, when `pytest tests/integration/test_product_ingestion_flow.py` is executed, then all 6 tests pass (100% pass rate)
+- **AC-004-012:** Given 10 Dutch test queries are defined in `manual-test.md`, when each query is tested manually via OpenWebUI or API, then ≥7 queries (≥70%) return relevant products
+- **AC-004-013:** Given FEAT-004 implementation is complete, when documentation files are reviewed, then PRD, CHANGELOG.md, and docs/README.md reflect completed feature
+
+### Edge Cases & Error Handling
+
+- **AC-004-101:** Given portal.evi360.nl/products is inaccessible or returns empty HTML, when scraping is attempted, then scraper logs error "No products found on listing page" and exits gracefully without crashing
+- **AC-004-102:** Given portal products have significantly different names than CSV products, when fuzzy matching is executed, then unmatched products are logged with similarity scores for manual review
+- **AC-004-103:** Given portal HTML for a product lacks price element or URL is malformed, when product details are extracted, then product is still inserted with `price=None` or URL validation error logged
+- **AC-004-104:** Given products table has poor indexing or query is complex, when search query is executed, then slow query is logged with warning: "Search latency Xms exceeds 500ms threshold"
+- **AC-004-105:** Given user query is "Welke interventies zijn er voor burn-out?", when agent processes query, then agent response includes products (via search_products() call) or logs "No products tool call made"
+
+### Non-Functional Requirements
+
+- **AC-004-201:** Hybrid search must complete in <500ms for p95 latency with response time <500ms for 95% of queries and throughput ≥10 queries per second (concurrent)
+- **AC-004-202:** Product data must be accurate and complete with 100% URL accuracy (canonical portal.evi360.nl URLs), 100% embedding coverage, ≥80% CSV match rate, and ≥25 products with problem_mappings
+- **AC-004-203:** Product catalog can be easily refreshed when portal updates via CLI command `python3 -m ingestion.ingest_products --refresh` which re-scrapes portal, upserts existing products, adds new products, and completes in <10 minutes
+
+### Integration Requirements
+
+- **AC-004-301:** Given specialist agent is initialized with search_products() tool, when agent receives query "Welke interventies zijn er voor burn-out?", then agent calls tool, receives products, formats in Dutch markdown without breaking existing guideline search functionality
+- **AC-004-302:** Given products table exists with embedding and metadata fields, when hybrid search query is executed, then search leverages IVFFLAT index and JSONB metadata index with schema migration adding price field and removing compliance_tags
+
+### Data Requirements
+
+- **AC-004-401:** Intervention_matrix.csv must be valid and parsable with format as valid CSV with headers (Probleem, Category, Link interventie, Soort interventie), 33 rows (excluding header), UTF-8 encoding with Dutch characters, and all rows have non-empty Probleem and Soort interventie
+- **AC-004-402:** Products are persisted correctly in PostgreSQL with schema containing products table with embedding vector(1536), metadata JSONB, price TEXT, indexes (IVFFLAT on embedding, GIN on metadata), constraints (url NOT NULL, name NOT NULL), and migrations applied via migration script
+
+---

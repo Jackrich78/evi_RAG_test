@@ -1,367 +1,407 @@
 """
-Unit tests for product catalog ingestion.
+Unit tests for FEAT-004: Product Catalog Ingestion Pipeline
 
-Tests the product ingestion pipeline including Notion parsing,
-embedding generation, database storage, and error handling.
+Tests cover:
+- Portal scraping with Crawl4AI (5 tests)
+- CSV parsing and fuzzy matching (5 tests)
+- Product enrichment and embedding (3 tests)
+- Database operations (4 tests)
+- Search tool functionality (1 test)
+
+Total: 18 unit test stubs
 
 Related Acceptance Criteria:
-- AC-FEAT-004-001 through AC-FEAT-004-005 (Product Ingestion)
-- AC-FEAT-004-020 through AC-FEAT-004-022 (Data Quality)
-- AC-FEAT-004-023 through AC-FEAT-004-024 (Performance)
-- AC-FEAT-004-028 through AC-FEAT-004-030 (Error Handling)
-- AC-FEAT-004-031 through AC-FEAT-004-034 (Edge Cases)
+- AC-004-001 through AC-004-005 (Portal Scraping & CSV Integration)
+- AC-004-006 (Hybrid Search)
+- AC-004-007 (Search Tool)
+- AC-004-102 through AC-004-103 (Edge Cases)
+- AC-004-203 (Maintainability)
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from typing import Dict, List
+from typing import List, Dict, Any
+from unittest.mock import MagicMock, AsyncMock, patch
 
 
-# Fixtures
+# ============================================================================
+# Portal Scraping Tests (5 tests)
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_portal_scraping_product_listing_fetch():
+    """
+    Test: Portal Scraping - Product Listing Fetch (AC-004-001)
+
+    Given: Mocked Crawl4AI returns HTML with product links
+    When: scrape_all_products() is called
+    Then: Product URLs are extracted (55-65 count), header/footer links ignored
+    """
+    # TODO: Implement test
+    # 1. Mock AsyncWebCrawler.arun() to return fixture HTML with product listing
+    # 2. Call scrape_all_products() from ingestion.scrape_portal_products
+    # 3. Assert 55-65 product URLs returned
+    # 4. Assert no header/footer links (check for /products/ pattern only)
+    # 5. Assert URLs are absolute (start with https://portal.evi360.nl)
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+@pytest.mark.asyncio
+async def test_portal_scraping_product_urls_extraction():
+    """
+    Test: Portal Scraping - Product URLs Extraction (AC-004-001)
+
+    Given: Mocked product listing HTML contains <main> with product links
+    When: Product URLs are extracted using BeautifulSoup selectors
+    Then: Only portal.evi360.nl/products/* URLs returned, navigation links excluded
+    """
+    # TODO: Implement test
+    # 1. Create fixture HTML with <main> containing product links + <nav> with irrelevant links
+    # 2. Parse with BeautifulSoup (simulate extract_product_urls function)
+    # 3. Assert only <main> links extracted
+    # 4. Assert navigation/footer links excluded
+    # 5. Assert all URLs match pattern: https://portal.evi360.nl/products/\d+
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+@pytest.mark.asyncio
+async def test_portal_scraping_individual_product_click():
+    """
+    Test: Portal Scraping - Individual Product Click (AC-004-001)
+
+    Given: Mocked Crawl4AI clicks into product page
+    When: extract_product_details() parses product HTML
+    Then: name, description, price, category extracted correctly
+    """
+    # TODO: Implement test
+    # 1. Create fixture HTML for single product page (Herstelcoaching example)
+    # 2. Mock AsyncWebCrawler.arun() to return fixture
+    # 3. Call extract_product_details(html)
+    # 4. Assert product dict contains: name="Herstelcoaching", description (non-empty),
+    #    price="€2.500 - €3.500", category="Coaching"
+    # 5. Assert no None values for required fields (name, description, URL)
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+@pytest.mark.asyncio
+async def test_portal_scraping_missing_price_field():
+    """
+    Test: Portal Scraping - Missing Price Field Handling (AC-004-103)
+
+    Given: Product HTML lacks price element
+    When: extract_product_details() is called
+    Then: Product returned with price=None, other fields intact
+    """
+    # TODO: Implement test
+    # 1. Create fixture HTML without .product-price element
+    # 2. Call extract_product_details(html)
+    # 3. Assert product dict has price=None
+    # 4. Assert name, description, category still populated
+    # 5. Assert no exception raised
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+@pytest.mark.asyncio
+async def test_portal_scraping_error_handling():
+    """
+    Test: Portal Scraping - Error Handling for Failed Requests (AC-004-101)
+
+    Given: Crawl4AI raises timeout error for product page
+    When: Scraping is attempted with retry logic
+    Then: Error logged, product skipped, scraping continues
+    """
+    # TODO: Implement test
+    # 1. Mock AsyncWebCrawler.arun() to raise asyncio.TimeoutError on 2nd call
+    # 2. Call scrape_all_products() with retry logic
+    # 3. Assert error logged (check logging output or mock logger)
+    # 4. Assert scraping continues (other products still returned)
+    # 5. Assert failed product not in final list
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+# ============================================================================
+# CSV Parsing Tests (5 tests)
+# ============================================================================
+
+def test_csv_parsing_problem_product_mapping_extraction():
+    """
+    Test: CSV Parsing - Problem-Product Mapping Extraction (AC-004-003)
+
+    Given: Intervention_matrix.csv with 33 rows
+    When: parse_interventie_csv() is called
+    Then: 33 product-problem mappings extracted, problems aggregated by product name
+    """
+    # TODO: Implement test
+    # 1. Use real Intervention_matrix.csv from docs/features/FEAT-004_product-catalog/
+    # 2. Call parse_interventie_csv()
+    # 3. Assert 33 rows parsed (len(mappings) <= 33 due to aggregation)
+    # 4. Assert all mappings have keys: product_name, problems (list), category
+    # 5. Assert problems are non-empty strings
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+def test_csv_parsing_many_to_one_aggregation():
+    """
+    Test: CSV Parsing - Many-to-One Problem Aggregation (AC-004-004)
+
+    Given: CSV has 3 rows with same "Soort interventie" value
+    When: Problems are aggregated
+    Then: Single product with 3 problems in array
+    """
+    # TODO: Implement test
+    # 1. Create test CSV with 3 rows: same "Soort interventie", different "Probleem"
+    # 2. Parse test CSV
+    # 3. Assert only 1 product returned (not 3 duplicates)
+    # 4. Assert product["problems"] list has 3 items
+    # 5. Assert all 3 problems present in array
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+def test_fuzzy_matching_high_similarity_match():
+    """
+    Test: Fuzzy Matching - High Similarity Match (≥0.9) (AC-004-003)
+
+    Given: CSV product "Herstelcoaching" and portal product "Herstelcoaching (6-9 maanden)"
+    When: fuzzy_match_products(threshold=0.9) is called
+    Then: Products matched, problem_mappings enriched
+    """
+    # TODO: Implement test
+    # 1. Create mock CSV product: {"product_name": "Herstelcoaching", "problems": ["burn-out"], "category": "X"}
+    # 2. Create mock portal product: {"name": "Herstelcoaching (6-9 maanden)", ...}
+    # 3. Call fuzzy_match_products([csv_prod], [portal_prod], threshold=0.9)
+    # 4. Assert match found (len(matched) == 1)
+    # 5. Assert portal product enriched with metadata.problem_mappings = ["burn-out"]
+    # 6. Assert metadata.csv_category = "X"
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+def test_fuzzy_matching_low_similarity_rejection():
+    """
+    Test: Fuzzy Matching - Low Similarity Rejection (<0.9) (AC-004-102)
+
+    Given: CSV product "BMW Gesprek" and portal product "Psychiatric Support"
+    When: Fuzzy matching is attempted
+    Then: No match, product logged to unmatched list
+    """
+    # TODO: Implement test
+    # 1. Create dissimilar CSV and portal products (similarity <0.7)
+    # 2. Call fuzzy_match_products(threshold=0.9)
+    # 3. Assert no match (len(matched) == 0)
+    # 4. Assert portal product NOT enriched (no problem_mappings)
+    # 5. Assert CSV product appears in unmatched list (returned or logged)
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+def test_fuzzy_matching_unmatched_products_logged():
+    """
+    Test: Fuzzy Matching - Unmatched Products Logged (AC-004-102)
+
+    Given: 5 CSV products cannot be matched (similarity <0.9)
+    When: Fuzzy matching completes
+    Then: Warning logged: "⚠️  Unmatched CSV products (5): [...]"
+    """
+    # TODO: Implement test
+    # 1. Create 5 CSV products with no similar portal products
+    # 2. Mock logging or capture stdout
+    # 3. Call fuzzy_match_products()
+    # 4. Assert warning message logged containing "Unmatched CSV products (5)"
+    # 5. Assert unmatched product names listed
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+# ============================================================================
+# Product Enrichment Tests (3 tests)
+# ============================================================================
+
+def test_product_enrichment_metadata_with_problem_mappings():
+    """
+    Test: Product Enrichment - Metadata with Problem Mappings (AC-004-004)
+
+    Given: Portal product matched to CSV product with 2 problems
+    When: Product is enriched
+    Then: metadata contains {"problem_mappings": ["Problem 1", "Problem 2"], "csv_category": "Category"}
+    """
+    # TODO: Implement test
+    # 1. Create portal product dict without metadata
+    # 2. Create CSV match with 2 problems and category
+    # 3. Call enrich_product_with_csv_data(portal_product, csv_data)
+    # 4. Assert portal_product["metadata"]["problem_mappings"] == ["Problem 1", "Problem 2"]
+    # 5. Assert portal_product["metadata"]["csv_category"] == "Category"
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+def test_product_enrichment_embedding_generation_with_problems():
+    """
+    Test: Product Enrichment - Embedding Generation with Problems (AC-004-005)
+
+    Given: Product with description and 2 problem mappings
+    When: Embedding text is generated
+    Then: Text = "description\\n\\nProblem 1\\nProblem 2"
+    """
+    # TODO: Implement test
+    # 1. Create product dict: {description: "Test desc", metadata: {problem_mappings: ["P1", "P2"]}}
+    # 2. Call generate_embedding_text(product)
+    # 3. Assert text == "Test desc\n\nP1\nP2"
+    # 4. Assert problems separated by newlines
+    # 5. Assert double newline between description and problems
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+def test_product_enrichment_no_csv_match_fallback():
+    """
+    Test: Product Enrichment - No CSV Match Fallback (AC-004-102)
+
+    Given: Portal product with no CSV match
+    When: Product is enriched
+    Then: Embedding generated from description only, metadata.problem_mappings = []
+    """
+    # TODO: Implement test
+    # 1. Create portal product without CSV match (no problem_mappings)
+    # 2. Call generate_embedding_text(product)
+    # 3. Assert text == product["description"] (no problems appended)
+    # 4. Assert metadata.problem_mappings == [] or None
+    # 5. Assert embedding still generated (description-only)
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+# ============================================================================
+# Database Operations Tests (4 tests)
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_database_operations_insert_new_product():
+    """
+    Test: Database Operations - Insert New Product (AC-004-001)
+
+    Given: Product dict with all fields
+    When: insert_product() is called
+    Then: Product inserted into database, UUID returned
+    """
+    # TODO: Implement test
+    # 1. Create test database connection (asyncpg pool)
+    # 2. Create product dict with name, description, url, embedding, metadata
+    # 3. Call insert_product(conn, product)
+    # 4. Assert UUID returned
+    # 5. Assert product exists in database (SELECT COUNT WHERE id = uuid)
+    # 6. Cleanup: DELETE product after test
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+@pytest.mark.asyncio
+async def test_database_operations_update_existing_product():
+    """
+    Test: Database Operations - Update Existing Product (AC-004-203)
+
+    Given: Product with same name+URL exists in database
+    When: upsert_product() is called
+    Then: Existing product updated, not duplicated
+    """
+    # TODO: Implement test
+    # 1. Insert product into test database
+    # 2. Modify product description
+    # 3. Call upsert_product(conn, product) (should update, not insert)
+    # 4. Assert COUNT(*) WHERE name+url = 1 (no duplicate)
+    # 5. Assert description updated in database
+    # 6. Cleanup: DELETE product
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+@pytest.mark.asyncio
+async def test_database_operations_handle_duplicate_names():
+    """
+    Test: Database Operations - Handle Duplicate Names (AC-004-203)
+
+    Given: Two products with same name but different URLs
+    When: Both inserted
+    Then: Two separate products created (URL distinguishes)
+    """
+    # TODO: Implement test
+    # 1. Create 2 products: same name, different URLs
+    # 2. Insert both products
+    # 3. Assert COUNT(*) WHERE name = 2 (both inserted)
+    # 4. Assert URLs differ in database
+    # 5. Cleanup: DELETE both products
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+@pytest.mark.asyncio
+async def test_database_operations_upsert_logic():
+    """
+    Test: Database Operations - Upsert Logic (AC-004-203)
+
+    Given: Product exists with same (name, URL, description)
+    When: upsert_product() is called with updated metadata
+    Then: Metadata updated, embedding refreshed, updated_at changed
+    """
+    # TODO: Implement test
+    # 1. Insert product with initial metadata
+    # 2. Modify product metadata (add problem_mappings)
+    # 3. Call upsert_product(conn, product)
+    # 4. Assert COUNT = 1 (no duplicate)
+    # 5. Assert metadata updated in database
+    # 6. Assert updated_at timestamp changed
+    # 7. Cleanup: DELETE product
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+# ============================================================================
+# Hybrid Search Tool Test (1 test)
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_hybrid_search_tool_result_formatting():
+    """
+    Test: Hybrid Search Tool - Result Formatting for LLM (AC-004-008)
+
+    Given: SQL function returns 3 products with long descriptions
+    When: search_products_tool() formats results
+    Then: Descriptions truncated to 200 chars, similarity rounded to 2 decimals
+    """
+    # TODO: Implement test
+    # 1. Mock database query results: 3 products with 500-char descriptions
+    # 2. Mock OpenAI embedding generation
+    # 3. Call search_products_tool(ctx, query="burn-out", limit=3)
+    # 4. Assert 3 products returned
+    # 5. Assert description length ≤ 200 chars (truncated)
+    # 6. Assert similarity rounded: e.g., 0.876543 → 0.88
+    # 7. Assert result format: List[Dict] with keys: name, description, url, price, similarity
+    pytest.skip("Test stub - implement in Phase 2")
+
+
+# ============================================================================
+# Test Fixtures (shared across tests)
+# ============================================================================
+
 @pytest.fixture
-def mock_notion_client():
-    """Mock Notion client for testing."""
-    # TODO: Implement mock Notion client with sample responses
-    pass
+def sample_portal_product() -> Dict[str, Any]:
+    """Fixture: Sample portal product for testing."""
+    return {
+        "name": "Herstelcoaching",
+        "description": "6-9 maanden traject voor burn-out herstel",
+        "price": "€2.500 - €3.500",
+        "url": "https://portal.evi360.nl/products/15",
+        "category": "Coaching"
+    }
 
 
 @pytest.fixture
-def mock_db_connection():
-    """Mock database connection for testing."""
-    # TODO: Implement mock database connection
-    pass
+def sample_csv_product() -> Dict[str, Any]:
+    """Fixture: Sample CSV product for testing."""
+    return {
+        "product_name": "Herstelcoaching",
+        "problems": ["Mijn werknemer heeft burn-out klachten"],
+        "category": "Verbetering belastbaarheid"
+    }
 
 
 @pytest.fixture
-def sample_notion_product_complete():
-    """Sample Notion product page with all fields complete."""
-    # TODO: Return mock Notion page with complete product data
-    pass
-
-
-@pytest.fixture
-def sample_notion_product_missing_optional():
-    """Sample Notion product page with missing optional fields."""
-    # TODO: Return mock Notion page missing price_range, supplier
-    pass
-
-
-@pytest.fixture
-def sample_notion_product_missing_required():
-    """Sample Notion product page with missing required fields."""
-    # TODO: Return mock Notion page missing name or description
-    pass
-
-
-# Test Cases
-
-def test_parse_product_notion_page_complete_data(sample_notion_product_complete):
+def mock_crawl4ai_response() -> str:
+    """Fixture: Mocked Crawl4AI HTML response."""
+    return """
+    <html>
+      <main>
+        <a href="/products/15">Herstelcoaching</a>
+        <a href="/products/27">Multidisciplinaire Burnout Aanpak</a>
+      </main>
+      <footer><!-- ignore --></footer>
+    </html>
     """
-    Test parsing Notion page with complete product data.
-
-    AC-FEAT-004-001: Verify all fields extracted from Notion page.
-
-    Given: A Notion product page with all fields populated
-    When: The parse function is called
-    Then: All fields are extracted correctly (name, description, category,
-          supplier, compliance_tags, use_cases, price_range)
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import parse_product_notion_page
-    # result = parse_product_notion_page(sample_notion_product_complete)
-    # assert result["name"] == "Expected Name"
-    # assert result["description"] == "Expected Description"
-    # assert "category" in result
-    # assert "supplier" in result
-    # assert "compliance_tags" in result
-    # assert "use_cases" in result
-    # assert "price_range" in result
-    pass
-
-
-def test_parse_product_notion_page_missing_optional_fields(sample_notion_product_missing_optional):
-    """
-    Test parsing Notion page with missing optional fields.
-
-    AC-FEAT-004-021: Handle missing optional fields gracefully.
-
-    Given: A Notion product page missing price_range and supplier
-    When: The parse function is called
-    Then: Product is parsed with None values for missing optional fields
-          and warning is logged
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import parse_product_notion_page
-    # result = parse_product_notion_page(sample_notion_product_missing_optional)
-    # assert result["name"] is not None
-    # assert result["description"] is not None
-    # assert result["price_range"] is None
-    # assert result["supplier"] is None
-    pass
-
-
-def test_parse_product_notion_page_missing_required_fields(sample_notion_product_missing_required):
-    """
-    Test parsing Notion page with missing required fields.
-
-    AC-FEAT-004-022: Skip products missing required fields.
-
-    Given: A Notion product page missing name or description
-    When: The parse function is called
-    Then: Function returns None or raises ValidationError
-          and error is logged
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import parse_product_notion_page
-    # result = parse_product_notion_page(sample_notion_product_missing_required)
-    # assert result is None
-    # # OR assert raises ValidationError
-    pass
-
-
-def test_parse_product_notion_page_special_characters():
-    """
-    Test parsing product names with special characters.
-
-    AC-FEAT-004-032: Preserve special characters in names and descriptions.
-
-    Given: A product with special characters (™, ®, #, etc.)
-    When: The parse function is called
-    Then: Special characters are preserved in the output
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import parse_product_notion_page
-    # mock_page = create_mock_page_with_special_chars("Safety Goggles™ - Model #42")
-    # result = parse_product_notion_page(mock_page)
-    # assert result["name"] == "Safety Goggles™ - Model #42"
-    pass
-
-
-def test_normalize_compliance_tags():
-    """
-    Test normalization of compliance tags.
-
-    AC-FEAT-004-014: Normalize tags to uppercase and trim whitespace.
-
-    Given: Compliance tags with mixed case and extra spaces
-    When: The normalize function is called
-    Then: Tags are uppercase and trimmed ("ce" → "CE", " EN 397 " → "EN 397")
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import normalize_compliance_tags
-    # tags = ["ce", " EN 397 ", "ATEX", "  en 166  "]
-    # result = normalize_compliance_tags(tags)
-    # assert result == ["CE", "EN 397", "ATEX", "EN 166"]
-    pass
-
-
-def test_generate_product_embedding():
-    """
-    Test embedding generation for products.
-
-    AC-FEAT-004-002: Generate semantic embedding from product data.
-
-    Given: A product with name, description, and use_cases
-    When: The embedding generation function is called
-    Then: An embedding vector is created using text-embedding-3-small
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import generate_product_embedding
-    # product_data = {
-    #     "name": "Safety Helmet",
-    #     "description": "Hard hat for construction",
-    #     "use_cases": "Building sites, industrial work"
-    # }
-    # embedding = generate_product_embedding(product_data)
-    # assert isinstance(embedding, list)
-    # assert len(embedding) == 1536  # text-embedding-3-small dimension
-    pass
-
-
-def test_generate_product_embedding_long_description():
-    """
-    Test embedding generation with very long descriptions.
-
-    AC-FEAT-004-033: Truncate descriptions exceeding token limit.
-
-    Given: A product with description exceeding 5000 characters
-    When: The embedding generation function is called
-    Then: Description is truncated to token limit and warning is logged
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import generate_product_embedding
-    # long_description = "x" * 6000
-    # product_data = {
-    #     "name": "Product",
-    #     "description": long_description,
-    #     "use_cases": "Various"
-    # }
-    # with pytest.warns(UserWarning):
-    #     embedding = generate_product_embedding(product_data)
-    # assert embedding is not None
-    pass
-
-
-def test_upsert_product_new_product(mock_db_connection):
-    """
-    Test inserting new product into database.
-
-    AC-FEAT-004-003: Store products in database with proper schema.
-
-    Given: A new product not in the database
-    When: The upsert function is called
-    Then: Product is inserted and function returns True
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import upsert_product
-    # product_data = {
-    #     "notion_page_id": "new-product-123",
-    #     "name": "New Product",
-    #     "description": "Description",
-    #     "embedding": [0.1] * 1536
-    # }
-    # result = upsert_product(mock_db_connection, product_data)
-    # assert result is True
-    pass
-
-
-def test_upsert_product_existing_product(mock_db_connection):
-    """
-    Test updating existing product in database.
-
-    AC-FEAT-004-004: Update existing products without creating duplicates.
-
-    Given: A product with matching notion_page_id already exists
-    When: The upsert function is called
-    Then: Existing product is updated (not duplicated)
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import upsert_product
-    # product_data = {
-    #     "notion_page_id": "existing-product-456",
-    #     "name": "Updated Name",
-    #     "description": "Updated Description",
-    #     "embedding": [0.2] * 1536
-    # }
-    # result = upsert_product(mock_db_connection, product_data)
-    # assert result is True
-    # # Verify update, not insert
-    pass
-
-
-def test_ingest_products_success(mock_notion_client, mock_db_connection):
-    """
-    Test successful ingestion of multiple products.
-
-    AC-FEAT-004-020: Ingest 100% of products successfully.
-
-    Given: A Notion database with multiple valid products
-    When: The ingest_products function is called
-    Then: All products are ingested and function returns count
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import ingest_products
-    # count = ingest_products(notion_database_id="test-db-id")
-    # assert count > 0
-    # assert count == expected_product_count
-    pass
-
-
-def test_ingest_products_empty_catalog(mock_notion_client, mock_db_connection):
-    """
-    Test ingestion with empty Notion database.
-
-    AC-FEAT-004-031: Handle empty catalog gracefully.
-
-    Given: A Notion database with no products
-    When: The ingest_products function is called
-    Then: Function completes successfully and returns 0
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import ingest_products
-    # count = ingest_products(notion_database_id="empty-db-id")
-    # assert count == 0
-    pass
-
-
-def test_ingest_products_notion_api_failure(mock_notion_client):
-    """
-    Test handling of Notion API failures.
-
-    AC-FEAT-004-028: Retry on API failure with exponential backoff.
-
-    Given: Notion API returns error (rate limit or network failure)
-    When: The ingest_products function is called
-    Then: Function retries with exponential backoff and logs error
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import ingest_products
-    # mock_notion_client.side_effect = NotionAPIError("Rate limited")
-    # with pytest.raises(NotionAPIError):
-    #     ingest_products(notion_database_id="test-db-id")
-    # # Verify retry attempts
-    pass
-
-
-def test_ingest_products_database_failure(mock_notion_client, mock_db_connection):
-    """
-    Test handling of database failures.
-
-    AC-FEAT-004-029: Rollback transaction on database error.
-
-    Given: Database connection fails during ingestion
-    When: A product is being stored
-    Then: Transaction is rolled back and error is logged
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import ingest_products
-    # mock_db_connection.side_effect = DatabaseError("Connection lost")
-    # with pytest.raises(DatabaseError):
-    #     ingest_products(notion_database_id="test-db-id")
-    # # Verify rollback occurred
-    pass
-
-
-def test_ingest_products_batch_processing(mock_notion_client, mock_db_connection):
-    """
-    Test batch processing of large product catalogs.
-
-    AC-FEAT-004-023: Process products in batches of 100.
-
-    Given: A Notion database with 250 products
-    When: The ingest_products function is called
-    Then: Products are processed in 3 batches (100, 100, 50)
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import ingest_products
-    # # Mock 250 products
-    # count = ingest_products(notion_database_id="large-db-id")
-    # assert count == 250
-    # # Verify batch processing occurred (check logs or mock call count)
-    pass
-
-
-def test_concurrent_ingestion_prevention():
-    """
-    Test prevention of concurrent ingestion processes.
-
-    AC-FEAT-004-034: Prevent concurrent ingestion with file lock.
-
-    Given: An ingestion process is already running
-    When: A second ingestion is triggered
-    Then: Second process exits with warning and no data corruption occurs
-    """
-    # TODO: Implement test
-    # from ingestion.ingest import ingest_products
-    # import threading
-    #
-    # def run_ingestion():
-    #     ingest_products(notion_database_id="test-db-id")
-    #
-    # thread1 = threading.Thread(target=run_ingestion)
-    # thread1.start()
-    #
-    # # Attempt concurrent ingestion
-    # with pytest.raises(IngestionLockError):
-    #     ingest_products(notion_database_id="test-db-id")
-    pass

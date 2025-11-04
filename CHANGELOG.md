@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - FEAT-004 Planning Complete: Product Catalog with Interventie Wijzer Integration (2025-11-04)
+- **FEAT-004: Product Catalog with Interventie Wijzer Integration - Planning Documentation Complete**
+  - **Status:** ✅ Ready for Implementation
+  - **Planning Completed:** 2025-11-04
+  - **Scope:** Portal scraping + CSV enrichment + hybrid search
+  - **Estimated Implementation:** 14 hours (6 phases)
+
+  **Planning Documents Created (5 files):**
+  - architecture.md - Portal scraping + CSV enrichment with Crawl4AI (3 options evaluated, 7-criteria comparison matrix)
+  - acceptance.md - 13 core + 5 edge cases + 3 non-functional + 2 integration + 2 data requirements (25 total criteria)
+  - testing.md - Comprehensive test strategy with TDD approach
+  - manual-test.md - 10 Dutch query scenarios for user acceptance testing
+  - implementation-guide.md - Quick-start roadmap with 6-phase implementation plan
+
+  **Test Stubs Generated (24 tests in 2 files):**
+  - Unit tests: 18 tests (portal scraping, CSV parsing, enrichment, database, search tool)
+  - Integration tests: 6 tests (end-to-end flow, agent integration, performance, re-scraping)
+
+  **Architecture Decision:**
+  - **Selected:** Option 1 - Portal scraping + CSV enrichment with Crawl4AI
+  - **Rationale:** Fastest path to MVP, proven ingestion patterns, 14 hours estimated
+  - **Key Features:**
+    - Scrape ~60 products from portal.evi360.nl using Crawl4AI (JavaScript-capable)
+    - Parse Intervention_matrix.csv for 33 problem-to-product mappings
+    - Fuzzy matching (≥0.9 threshold) to enrich products with problem_mappings
+    - Hybrid search: 70% vector + 30% Dutch full-text
+    - Embedding strategy: 1 product = 1 embedding (description + problems concatenated)
+    - search_products() tool for agent integration
+
+  **Acceptance Criteria:** 25 new criteria added to AC.md (AC-004-001 through AC-004-402)
+  - 13 core functional criteria (scraping, CSV integration, hybrid search, agent integration)
+  - 5 edge cases (empty portal, fuzzy match failure, missing fields, slow search, agent not calling tool)
+  - 3 non-functional requirements (performance, data quality, maintainability)
+  - 2 integration requirements (agent tool calling, Dutch markdown formatting)
+  - 2 data requirements (CSV validity, embedding coverage)
+
+  **Implementation Phases:**
+  1. Phase 1: Portal scraping with Crawl4AI (3 hours)
+  2. Phase 2: CSV parsing and fuzzy matching (2 hours)
+  3. Phase 3: Product enrichment and embedding (2 hours)
+  4. Phase 4: Database operations and hybrid search (3 hours)
+  5. Phase 5: Agent integration with search_products() tool (2 hours)
+  6. Phase 6: Testing and validation (2 hours)
+
+  **Next Steps:** Phase 2 implementation following TDD approach (Red-Green-Refactor)
+
+---
+
 ## [2025-11-03]
 
 ### ✅ Completed Features
