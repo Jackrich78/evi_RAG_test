@@ -1,0 +1,104 @@
+<!DOCTYPE html><html lang="nl"><head><meta http-equiv="origin-trial" content="A7vZI3v+Gz7JfuRolKNM4Aff6zaGuT7X0mf3wtoZTnKv6497cVMnhy03KDqX7kBz/q/iidW7srW31oQbBt4VhgoAAACUeyJvcmlnaW4iOiJodHRwczovL3d3dy5nb29nbGUuY29tOjQ0MyIsImZlYXR1cmUiOiJEaXNhYmxlVGhpcmRQYXJ0eVN0b3JhZ2VQYXJ0aXRpb25pbmczIiwiZXhwaXJ5IjoxNzU3OTgwODAwLCJpc1N1YmRvbWFpbiI6dHJ1ZSwiaXNUaGlyZFBhcnR5Ijp0cnVlfQ==">
+    <!--Dashboard Layout -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="dXBRFDKCnWXB5hTiDjAJquMmoHeScBK3SjcfNwpH">
+
+    <title>EVI360</title>
+
+    <!-- Scripts -->
+    <script type="text/javascript" async="" charset="utf-8" src="https://www.gstatic.com/recaptcha/releases/cLm1zuaUXPLFw7nzKiQTH1dX/recaptcha__en.js" crossorigin="anonymous" integrity="sha384-gUsoa0ra1Yy2gCgxtSiWVwd5FE8xBoMfoQotRIQrq+2UghRpxqxvq3SVJvG+KkRE"></script><script src="https://portal.evi360.nl/js/app.js" defer=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <!-- Fonts -->
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <!-- Styles -->
+        <link rel="stylesheet" type="text/css" href="https://portal.evi360.nl/css/default.css">
+    <style>
+        
+    </style>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-D6WFBGX0EY"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+
+        gtag('config', 'G-D6WFBGX0EY');
+        const toggleSideBarMobile = () =>
+            $('.sidebar.left').toggleClass('collapse', window.matchMedia(
+                '(max-height: 600px), (max-width: 600px)').matches);
+        $(toggleSideBarMobile);
+        $(window).resize(toggleSideBarMobile);
+    </script>
+    <script src="https://www.google.com/recaptcha/api.js?render=6LesvccqAAAAAAE2hqY4u4D6sculETvw5feROKCh"></script>
+    <script>
+        grecaptcha.ready(function() {
+            grecaptcha.execute('6LesvccqAAAAAAE2hqY4u4D6sculETvw5feROKCh', { action: 'submit' }).then(function(token) {
+                document.getElementById('recaptcha_token').value = token;
+            });
+        });
+    </script>
+</head>
+<body class="dashboard login">
+        <div class="platform-nav-top">
+        <div class="platform-cms-menu">
+            <img class="platform-logo" src="https://portal.evi360.nl/storage/eV5btGnyeONXu8ypYzJ02TPxar6VuW27hdXkgJug.svg" alt="EVI360" width="336" height="72">
+            <div class="platform-user-area">
+                <a class="platform-btn-no-outline dark" href="https://portal.evi360.nl/register">Aanmelden</a>
+                <a class="platform-btn-outline dark" href="https://portal.evi360.nl/login"><i class="fa-regular fa-user" aria-hidden="true"></i>Inloggen</a>
+            </div>
+        </div>
+    </div>
+                <div class="platform-login-container">
+        <div class="platform-credentials-container">
+            <div class="platform-credentials-container-content">
+                <h2>Log in op EVI360</h2>
+                <p>Alle diensten en producten met betrekking tot duurzame inzetbaarheid, interventies en preventie,
+                    ondergebracht in één platform.</p>
+                <h4><i class="fa-solid fa-check"></i> <b>Eenvoudig besteld</b></h4>
+                <h4><i class="fa-solid fa-check"></i> <b>Heldere offertes</b></h4>
+                <h4><i class="fa-solid fa-check"></i> <b>Deskundige begeleiding </b></h4>
+                <div class="spacer"></div>
+                <h3>Vul hier jouw gegevens in</h3>
+                <form method="POST" action="https://portal.evi360.nl/login" class="platform-credentials-container-content">
+
+                    <input type="hidden" name="_token" value="dXBRFDKCnWXB5hTiDjAJquMmoHeScBK3SjcfNwpH" autocomplete="off">                    <input id="email" type="email" placeholder="Uw e-mailadres" class="form-control " name="email" value="" required="" autocomplete="email" autofocus="">
+
+                    
+                    <input id="password" type="password" placeholder="Uw wachtwoord" class="form-control " name="password" required="" autocomplete="current-password">
+
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="remember" id="remember">
+
+                        <label class="form-check-label" for="remember">
+                            Onthoud mij
+                        </label>
+                    </div>
+
+                    <button type="submit" class="platform-btn fullwidth">
+                        Log in
+                    </button>
+
+                                            <a class="btn btn-link" href="https://portal.evi360.nl/password/reset">
+                            Wachtwoord vergeten?
+                        </a>
+                                    </form>
+            </div>
+        </div>
+        <div class="platform-credentials-image-container">
+        </div>
+    </div>
+    
+
+<div><div class="grecaptcha-badge" data-style="bottomright" style="width: 256px; height: 60px; display: block; transition: right 0.3s; position: fixed; bottom: 14px; right: -186px; box-shadow: gray 0px 0px 5px; border-radius: 2px; overflow: hidden;"><div class="grecaptcha-logo"><iframe title="reCAPTCHA" width="256" height="60" role="presentation" name="a-ksjrn2qp6j6q" frameborder="0" scrolling="no" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation allow-modals allow-popups-to-escape-sandbox allow-storage-access-by-user-activation" src="https://www.google.com/recaptcha/api2/anchor?ar=1&amp;k=6LesvccqAAAAAAE2hqY4u4D6sculETvw5feROKCh&amp;co=aHR0cHM6Ly9wb3J0YWwuZXZpMzYwLm5sOjQ0Mw..&amp;hl=en&amp;v=cLm1zuaUXPLFw7nzKiQTH1dX&amp;size=invisible&amp;anchor-ms=20000&amp;execute-ms=15000&amp;cb=5umnkynkdq7b"></iframe></div><div class="grecaptcha-error"></div><textarea id="g-recaptcha-response-100000" name="g-recaptcha-response" class="g-recaptcha-response" style="width: 250px; height: 40px; border: 1px solid rgb(193, 193, 193); margin: 10px 25px; padding: 0px; resize: none; display: none;"></textarea></div><iframe style="display: none;"></iframe></div></body></html>

@@ -1,0 +1,168 @@
+{
+  "csv_product_count": 23,
+  "portal_product_count": 76,
+  "threshold": 0.85,
+  "matched": 9,
+  "unmatched": [
+    {
+      "csv_name": "Gesprek leidinggevende en werknemer en / of begeleiding van een loopbaancoach",
+      "csv_normalized": "Gesprek leidinggevende en werknemer en / of begeleiding van een loopbaancoach",
+      "best_portal_match": "Verzuimtraining Voor Leidinggevende",
+      "best_score": 0.4
+    },
+    {
+      "csv_name": "Gesprek leidinggevende en werknemer of als dat lastig is bijstand van een P&O Adviseur",
+      "csv_normalized": "Gesprek leidinggevende en werknemer of als dat lastig is bijstand van een P&O Adviseur",
+      "best_portal_match": "Staat je interventie er niet bij? Vraag deze alsnog aan.",
+      "best_score": 0.43
+    },
+    {
+      "csv_name": "Inzet gewichtsconsulent",
+      "csv_normalized": "Inzet gewichtsconsulent",
+      "best_portal_match": "Gewichtsconsulent - Intake Online",
+      "best_score": 0.78
+    },
+    {
+      "csv_name": "Inzet van een leefstijlcoach",
+      "csv_normalized": "Inzet van een leefstijlcoach",
+      "best_portal_match": "Individuele Leefstijl- En Vitaliteitscoaching",
+      "best_score": 0.61
+    },
+    {
+      "csv_name": "Inzet van een mediator",
+      "csv_normalized": "Inzet van een mediator",
+      "best_portal_match": "Mediation",
+      "best_score": 0.52
+    },
+    {
+      "csv_name": "Loopbaanbegeleiding",
+      "csv_normalized": "Loopbaanbegeleiding",
+      "best_portal_match": "Gespreksbegeleiding",
+      "best_score": 0.63
+    },
+    {
+      "csv_name": "Multidisciplinaire intake t.b.v. een behandelplan.",
+      "csv_normalized": "Multidisciplinaire intake t.b.v. een behandelplan.",
+      "best_portal_match": "Multidisciplinaire burnout aanpak",
+      "best_score": 0.64
+    },
+    {
+      "csv_name": "Opstellen coachingsplan\n(Vgl. coachen naar een adequate coping- of communicatiestijl)",
+      "csv_normalized": "Opstellen coachingsplan",
+      "best_portal_match": "Opstellen Inzetbaarheidplan",
+      "best_score": 0.68
+    },
+    {
+      "csv_name": "Preventief onderzoek hoe het gaat met de inzetbaarheid van de werknemer.",
+      "csv_normalized": "Preventief onderzoek hoe het gaat met de inzetbaarheid van de werknemer.",
+      "best_portal_match": "Preventief Medisch Onderzoek (PMO)",
+      "best_score": 0.51
+    },
+    {
+      "csv_name": "Re-integratiebegeleiding naar een andere werkgever (2e of 3e spoor)",
+      "csv_normalized": "Re-integratiebegeleiding naar een andere werkgever",
+      "best_portal_match": "Re-Integratie 2e Spoor",
+      "best_score": 0.47
+    },
+    {
+      "csv_name": "Vroegconsult Arbeidsdeskundige",
+      "csv_normalized": "Vroegconsult Arbeidsdeskundige",
+      "best_portal_match": "Arbeidsdeskundig Onderzoek",
+      "best_score": 0.71
+    },
+    {
+      "csv_name": "Vroegconsult Arbeidsdeskundige bv. gericht op aanpassingen eigen taken",
+      "csv_normalized": "Vroegconsult Arbeidsdeskundige",
+      "best_portal_match": "Arbeidsdeskundig Onderzoek",
+      "best_score": 0.71
+    },
+    {
+      "csv_name": "Vroegconsult arbeidsfysiotherapeut",
+      "csv_normalized": "Vroegconsult arbeidsfysiotherapeut",
+      "best_portal_match": "Vroegconsult fysiotherapie",
+      "best_score": 0.83
+    },
+    {
+      "csv_name": "Vroegconsult arbeidspsycholoog",
+      "csv_normalized": "Vroegconsult arbeidspsycholoog",
+      "best_portal_match": "Vroegconsult psycholoog bij minder dan 6 weken verzuim",
+      "best_score": 0.62
+    }
+  ],
+  "match_rate": 0.391304347826087,
+  "target_met": false,
+  "matches": [
+    {
+      "csv_name": "Adviesgesprek P&O Adviseur \n(Bv. bij een vaststellings-overeenkomst of\nontslagaanvraag via UWV)",
+      "csv_normalized": "Adviesgesprek P&O Adviseur",
+      "portal_name": "Adviesgesprek P&O Adviseur",
+      "portal_url": "https://portal.evi360.nl/products/2",
+      "score": 1.0,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Arbeidsdeskundig Onderzoek 1e spoor",
+      "csv_normalized": "Arbeidsdeskundig Onderzoek",
+      "portal_name": "Arbeidsdeskundig Onderzoek",
+      "portal_url": "https://portal.evi360.nl/products/24",
+      "score": 1.0,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Eerste hulp bij financiële problemen",
+      "csv_normalized": "Eerste hulp bij financiële problemen",
+      "portal_name": "Hulp bij financiële problemen",
+      "portal_url": "https://portal.evi360.nl/products/44",
+      "score": 0.89,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Inzet bedrijfsmaatschappelijk werk",
+      "csv_normalized": "Inzet bedrijfsmaatschappelijk werk",
+      "portal_name": "Bedrijfsmaatschappelijk werk",
+      "portal_url": "https://portal.evi360.nl/products/7",
+      "score": 0.9,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Inzet vertrouwenspersoon",
+      "csv_normalized": "Inzet vertrouwenspersoon",
+      "portal_name": "Vertrouwenspersoon",
+      "portal_url": "https://portal.evi360.nl/products/16",
+      "score": 0.86,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Multidisciplinaire burnout aanpak",
+      "csv_normalized": "Multidisciplinaire burnout aanpak",
+      "portal_name": "Multidisciplinaire burnout aanpak",
+      "portal_url": "https://portal.evi360.nl/products/42",
+      "score": 1.0,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Overgangsconsultatie",
+      "csv_normalized": "Overgangsconsultatie",
+      "portal_name": "Overgangsconsultatie",
+      "portal_url": "https://portal.evi360.nl/products/40",
+      "score": 1.0,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Verslavingszorg interventie",
+      "csv_normalized": "Verslavingszorg interventie",
+      "portal_name": "Verslavingszorg interventie",
+      "portal_url": "https://portal.evi360.nl/products/39",
+      "score": 1.0,
+      "type": "automated"
+    },
+    {
+      "csv_name": "Werkplekonderzoek op locatie",
+      "csv_normalized": "Werkplekonderzoek op locatie",
+      "portal_name": "Werkplekonderzoek op locatie",
+      "portal_url": "https://portal.evi360.nl/products/29",
+      "score": 1.0,
+      "type": "automated"
+    }
+  ]
+}

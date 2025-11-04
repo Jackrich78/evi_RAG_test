@@ -1,0 +1,24 @@
+{
+  "_comment": "Manual CSV-to-Portal product mappings (validated)",
+  "_validation_date": "2025-11-04",
+  "_note": "These mappings were reviewed and corrected from fuzzy matching results",
+
+  "Inzet gewichtsconsulent": "Gewichtsconsulent - Intake Online",
+  "Inzet van een leefstijlcoach": "Individuele Leefstijl- En Vitaliteitscoaching",
+  "Inzet van een mediator": "Mediation",
+  "Loopbaanbegeleiding": "Loopbaancoaching",
+  "Vroegconsult Arbeidsdeskundige": "Arbeidsdeskundig Onderzoek",
+  "Vroegconsult Arbeidsdeskundige bv. gericht op aanpassingen eigen taken": "Arbeidsdeskundig Onderzoek",
+  "Vroegconsult arbeidsfysiotherapeut": "Vroegconsult fysiotherapie",
+  "Vroegconsult arbeidspsycholoog": "Vroegconsult psycholoog bij minder dan 6 weken verzuim",
+  "Preventief onderzoek hoe het gaat met de inzetbaarheid van de werknemer.": "Preventief Medisch Onderzoek (PMO)",
+  "Re-integratiebegeleiding naar een andere werkgever (2e of 3e spoor)": "Re-Integratie 2e Spoor",
+
+  "_unresolved": {
+    "_comment": "These CSV products may not have direct portal equivalents - need stakeholder input",
+    "Gesprek leidinggevende en werknemer en / of begeleiding van een loopbaancoach": "NO_MATCH",
+    "Gesprek leidinggevende en werknemer of als dat lastig is bijstand van een P&O Adviseur": "NO_MATCH",
+    "Multidisciplinaire intake t.b.v. een behandelplan.": "NO_MATCH",
+    "Opstellen coachingsplan\n(Vgl. coachen naar een adequate coping- of communicatiestijl)": "NO_MATCH"
+  }
+}
