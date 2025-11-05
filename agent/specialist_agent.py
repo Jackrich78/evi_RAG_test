@@ -26,7 +26,12 @@ from .models import (
     Citation,
     ChunkResult
 )
-from .tools import hybrid_search_tool, HybridSearchInput
+from .tools import (
+    hybrid_search_tool,
+    HybridSearchInput,
+    search_products_tool,
+    ProductSearchInput
+)
 from .providers import get_llm_model
 
 logger = logging.getLogger(__name__)
@@ -43,12 +48,12 @@ SPECIALIST_SYSTEM_PROMPT = """You are a workplace safety specialist for EVI 360.
 Your task:
 - Answer workplace safety questions clearly and practically
 - Use the search function to find relevant Dutch guidelines
+- Use search_products() when query relates to interventions, begeleiding, or workplace support services
 - Provide clear, actionable answers with source citations
 - Always cite at least 2 sources (NVAB, STECR, UWV, Arboportaal, ARBO)
 - Use informal, friendly tone
 
 Important:
-- Do not recommend products (not in this version)
 - Do not use tier system (not in this version)
 - Be accurate and base answers on found guidelines
 - If guidelines are in Dutch but user asks in English, translate key points naturally
@@ -73,6 +78,37 @@ Important:
 
 4. **Practical Advice** (if relevant)
    Concrete steps or recommendations.
+
+**Product Recommendations:**
+
+When user asks about interventions or workplace support, call search_products():
+
+Trigger phrases: "interventie", "begeleiding", "behandeling", "hulp", "ondersteuning", "product", "dienst"
+
+Examples when to call search_products():
+- "Welke interventies zijn er voor burn-out?" → Call search_products()
+- "Heeft EVI 360 begeleiding voor verzuim?" → Call search_products()
+- "Wat kan EVI 360 bieden voor fysieke klachten?" → Call search_products()
+
+IMPORTANT: ALWAYS call search_guidelines() FIRST for safety guidelines, THEN call search_products() if relevant.
+
+Format products in Dutch markdown:
+
+**[Product Name]** ([Price])
+[1-2 sentence description]
+🔗 [Product URL]
+
+Example:
+**Herstelcoaching** (€2.500 - €3.500)
+6-9 maanden traject voor burn-out herstel met begeleiding van arbeidsdeskundige.
+🔗 https://portal.evi360.nl/products/15
+
+Product Guidelines:
+- Recommend 2-3 most relevant products (max 5)
+- Include pricing, or "Prijs op aanvraag" if unavailable
+- Always include clickable URLs with 🔗 emoji
+- Present products AFTER guideline citations (guidelines first, then products)
+- If search_products() returns 0 results, mention "Geen specifieke producten gevonden voor deze vraag"
 
 **Citations (for structured data):**
 You must create at least 2 Citation objects:
@@ -174,6 +210,47 @@ async def search_guidelines(
         logger.error(f"Search failed: {e}")
         # Return empty list instead of raising (graceful degradation)
         return []
+
+
+@specialist_agent.tool
+async def search_products(
+    ctx: RunContext[SpecialistDeps],
+    query: str,
+    limit: int = 5
+) -> List[Dict[str, Any]]:
+    """
+    Search EVI 360 product catalog for intervention products.
+
+    Tool for specialist agent to search the product catalog.
+    Uses hybrid search (vector + Dutch full-text).
+
+    Args:
+        ctx: Agent context with dependencies
+        query: Dutch search query (e.g., "burn-out", "fysieke klachten")
+        limit: Maximum results (default 5, max 10)
+
+    Returns:
+        List of product dictionaries with name, description, url, price, similarity
+    """
+    try:
+        logger.info(f"Agent calling search_products: '{query}' (limit={limit})")
+
+        # Validate and cap limit
+        limit = min(max(limit, 1), 10)  # Clamp between 1-10
+
+        # Create search input
+        search_input = ProductSearchInput(query=query, limit=limit)
+
+        # Execute product search
+        results = await search_products_tool(search_input)
+
+        logger.info(f"search_products returned {len(results)} products for '{query}'")
+
+        return results
+
+    except Exception as e:
+        logger.error(f"search_products tool failed: {e}", exc_info=True)
+        return []  # Graceful degradation
 
 
 @specialist_agent.output_validator  # Updated from result_validator (deprecated)
@@ -449,6 +526,16 @@ async def run_specialist_query_stream(
     ) -> List[Dict[str, Any]]:
         """Search Dutch workplace safety guidelines."""
         return await search_guidelines(ctx, query, limit)
+
+    # Register the search_products tool on this agent instance
+    @agent.tool
+    async def search_products_local(
+        ctx: RunContext[SpecialistDeps],
+        query: str,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """Search EVI 360 product catalog."""
+        return await search_products(ctx, query, limit)
 
     # Register LENIENT output validator for streaming
     @agent.output_validator

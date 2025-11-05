@@ -1,0 +1,47 @@
+{
+  "count": 5,
+  "last_updated": "2025-11-05",
+  "note": "These products require manual stakeholder review for portal mapping",
+  "products": [
+    {
+      "csv_product": "Adviesgesprek P&O Adviseur \n(Bv. bij een vaststellings-overeenkomst of\nontslagaanvraag via UWV)",
+      "category": "Arbeidsvoorwaarden",
+      "problems": [
+        "Mijn werknemer en ik hebben advies nodig wat er gebeurt\nnadat mijn werknemer ziek uit dienst gaat."
+      ],
+      "reason": "No fuzzy match found above 0.85 threshold and no manual mapping exists"
+    },
+    {
+      "csv_product": "Multidisciplinaire intake t.b.v. een behandelplan.",
+      "category": "Verbetering belastbaarheid",
+      "problems": [
+        "Mijn werknemer heeft wellicht begeleiding nodig bij zowel zijn psychische als fysieke klachten"
+      ],
+      "reason": "No fuzzy match found above 0.85 threshold and no manual mapping exists"
+    },
+    {
+      "csv_product": "Opstellen coachingsplan\n(Vgl. coachen naar een adequate coping- of communicatiestijl)",
+      "category": "Arbeidsinhoud",
+      "problems": [
+        "Mijn zieke werknemer heeft ook coaching nodig (bijvoorbeeld voor terugvalpreventie)"
+      ],
+      "reason": "No fuzzy match found above 0.85 threshold and no manual mapping exists"
+    },
+    {
+      "csv_product": "Gesprek leidinggevende en werknemer of als dat lastig is bijstand van een P&O Adviseur",
+      "category": "Vitaliteit & Loopbaan",
+      "problems": [
+        "Mijn werknemer is niet gemotiveerd"
+      ],
+      "reason": "No fuzzy match found above 0.85 threshold and no manual mapping exists"
+    },
+    {
+      "csv_product": "Gesprek leidinggevende en werknemer en / of begeleiding van een loopbaancoach",
+      "category": "Vitaliteit & Loopbaan",
+      "problems": [
+        "Mijn werknemer is niet competent"
+      ],
+      "reason": "No fuzzy match found above 0.85 threshold and no manual mapping exists"
+    }
+  ]
+}

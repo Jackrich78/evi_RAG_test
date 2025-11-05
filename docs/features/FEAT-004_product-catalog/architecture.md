@@ -6,17 +6,17 @@
 
 ## Context
 
-The EVI 360 specialist agent currently cannot recommend intervention products - it only cites workplace safety guidelines. To provide actionable recommendations, we need to ingest ~60 EVI 360 products from portal.evi360.nl and enrich them with problem-to-product mappings from the Interventie Wijzer CSV. The challenge is choosing the optimal data source and ingestion strategy that provides canonical URLs, current pricing, and problem context while minimizing maintenance overhead and integration complexity.
+The EVI 360 specialist agent currently cannot recommend intervention products - it only cites workplace safety guidelines. To provide actionable recommendations, we need to ingest 76 EVI 360 products from portal.evi360.nl and enrich them with problem-to-product mappings from the Interventie Wijzer CSV. The challenge is choosing the optimal data source and ingestion strategy that provides canonical URLs, current pricing, and problem context while minimizing maintenance overhead and integration complexity.
 
 ## Options Considered
 
 ### Option 1: Portal Scraping + CSV Enrichment (Crawl4AI)
 
-**Description:** Scrape all ~60 products from portal.evi360.nl using Crawl4AI (JavaScript-capable web scraper), clicking into each product page for full details. Enrich scraped products with problem-to-product mappings from Interventie Wijzer CSV using fuzzy matching (≥0.9 threshold). Store enriched products in dedicated products table with hybrid search (70% vector + 30% Dutch full-text).
+**Description:** Scrape all 76 products from portal.evi360.nl using Crawl4AI (JavaScript-capable web scraper), clicking into each product page for full details. Enrich scraped products with problem-to-product mappings from Interventie Wijzer CSV using fuzzy matching (0.85 threshold with normalization + manual mappings). Store enriched products in dedicated products table with hybrid search (70% vector + 30% Dutch full-text).
 
 **Key Characteristics:**
 - Crawl4AI AsyncWebCrawler handles JavaScript rendering automatically
-- Scrapes product listing → clicks into ~60 individual product pages
+- Scrapes product listing → clicks into 76 individual product pages
 - Extracts: name, description, price, category, canonical URL
 - Fuzzy matches CSV products to portal products (fuzzywuzzy library)
 - Enriches metadata with problem_mappings array and csv_category
@@ -44,7 +44,7 @@ async with AsyncWebCrawler() as crawler:
 
 ### Option 2: Notion Database + Manual Portal URLs
 
-**Description:** Create a Notion database with ~60 product entries manually populated by EVI 360 staff. Each entry includes product name, description, category, and manually-entered portal.evi360.nl URLs. Ingest products via Notion API (reusing existing guidelines ingestion code from FEAT-002). Problem mappings from CSV matched to Notion products via fuzzy matching.
+**Description:** Create a Notion database with 76 product entries manually populated by EVI 360 staff. Each entry includes product name, description, category, and manually-entered portal.evi360.nl URLs. Ingest products via Notion API (reusing existing guidelines ingestion code from FEAT-002). Problem mappings from CSV matched to Notion products via fuzzy matching.
 
 **Key Characteristics:**
 - Reuses existing Notion API integration (notion-client library)
@@ -89,7 +89,7 @@ async def fetch_products_from_notion(database_id: str):
 **Example Implementation:**
 ```python
 # Parse CSV for product names
-csv_products = parse_interventie_csv()  # 33 unique products
+csv_products = parse_interventie_csv()  # 23 unique products (26 rows)
 
 # Load manually-maintained config
 with open("product_config.json") as f:
@@ -133,7 +133,7 @@ for csv_prod in csv_products:
 
 **Rationale:**
 
-Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritative source), current pricing from live product pages, and problem context via CSV enrichment. Re-scraping is automated via CLI command, eliminating manual maintenance overhead. Crawl4AI handles JavaScript rendering and clicking into product pages automatically, avoiding brittle BeautifulSoup selectors. Fuzzy matching (≥0.9 threshold) gracefully handles naming variations between CSV and portal. The hybrid search (70% vector + 30% Dutch text) balances semantic similarity with keyword matching for optimal retrieval quality.
+Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritative source), current pricing from live product pages, and problem context via CSV enrichment. Re-scraping is automated via CLI command, eliminating manual maintenance overhead. Crawl4AI handles JavaScript rendering and clicking into product pages automatically, avoiding brittle BeautifulSoup selectors. Fuzzy matching (0.85 threshold with normalization + manual mappings) gracefully handles naming variations between CSV and portal (83% match rate). The hybrid search (70% vector + 30% Dutch text) balances semantic similarity with keyword matching for optimal retrieval quality.
 
 ### Why Not Other Options?
 
@@ -146,8 +146,8 @@ Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritati
 **Option 3 (CSV-Only Manual):**
 - No automated URL validation - high risk of broken links
 - No pricing data without manual updates
-- Manual JSON configuration difficult to maintain at scale (60 products)
-- CSV only has 33 products, missing ~27 portal products
+- Manual JSON configuration difficult to maintain at scale (76 products)
+- CSV only has 23 unique products, missing ~53 portal products
 
 ### Trade-offs Accepted
 
@@ -175,7 +175,7 @@ Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritati
 - **Time Estimate:** 1 hour
 
 ### Step 4: Parse CSV and Fuzzy Match to Samples
-- **Action:** Parse Intervention_matrix.csv (33 rows), extract product names and problems, fuzzy match to 5 sample products using fuzzywuzzy (≥0.9 threshold)
+- **Action:** Parse Intervention_matrix.csv (26 rows with 23 unique products), extract product names and problems, fuzzy match to 5 sample products using fuzzywuzzy (0.85 threshold with normalization)
 - **Success Criteria:** ≥4 of 5 samples successfully matched to CSV products, problem_mappings populated in metadata, unmatched logged
 - **Time Estimate:** 45 minutes
 
@@ -209,8 +209,8 @@ Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritati
        │ products.py  │              │ csv.py       │
        └──────┬───────┘              └──────┬───────┘
               │                             │
-              │ ~60 products                │ fuzzy_match_products()
-              │ (name, desc, price, URL)    │ (≥0.9 threshold)
+              │ 76 products                 │ fuzzy_match_products()
+              │ (name, desc, price, URL)    │ (0.85 threshold + manual)
               │                             │
               └──────────┬──────────────────┘
                          │
@@ -268,9 +268,9 @@ Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritati
 
 ### Key Components
 
-- **scrape_portal_products.py:** Crawl4AI-based scraper that fetches product listing, extracts URLs, clicks into ~60 product pages, parses name/description/price/URL, saves to JSON
+- **scrape_portal_products.py:** Crawl4AI-based scraper that fetches product listing, extracts URLs, clicks into 76 product pages, parses name (h1) / description (div.platform-product-description p) / price (.product-price) / URL, saves to database
 
-- **parse_interventie_csv.py:** CSV parser that reads Intervention_matrix.csv, aggregates problems by product name (many-to-one), fuzzy matches to portal products (≥0.9 threshold), enriches metadata
+- **parse_interventie_csv.py:** CSV parser that reads Intervention_matrix.csv (26 rows, 23 unique products), aggregates problems by product name (many-to-one), fuzzy matches to portal products (0.85 threshold with normalization), loads manual mappings from manual_product_mappings.json, enriches metadata
 
 - **ingest_products.py:** Orchestrator that combines portal and CSV data, generates embeddings (description + problems concatenated), upserts to products table with metadata enrichment
 
@@ -280,9 +280,9 @@ Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritati
 
 ### Data Flow
 
-1. **Portal Scraping:** Crawl4AI fetches product listing → extracts ~60 product URLs → clicks into each page → extracts name, description, price, category, canonical URL → saves to portal_products.json
+1. **Portal Scraping (Phase 1):** Crawl4AI fetches product listing → extracts 76 product URLs → clicks into each page → extracts name (h1), description (div.platform-product-description p), price (.product-price), canonical URL → writes to database (category = NULL for scraped products)
 
-2. **CSV Parsing:** Parse Intervention_matrix.csv (33 rows) → aggregate problems by product name → fuzzy match CSV products to portal products using fuzzywuzzy (≥0.9 threshold) → enrich portal products with problem_mappings and csv_category in metadata
+2. **CSV Parsing (Phase 2):** Parse Intervention_matrix.csv (26 rows with 23 unique products) → aggregate problems by product name → fuzzy match CSV products to portal products using fuzzywuzzy (0.85 threshold with normalization) → load manual_product_mappings.json (10 products) → total 19 products matched (83%) → enrich database with problem_mappings and csv_category in metadata → write unmatched products to unresolved_products.json (4 products for stakeholder review)
 
 3. **Embedding Generation:** For each product, concatenate description + "\n\n" + "\n".join(problem_mappings) → generate 1536-dim embedding via OpenAI text-embedding-3-small → store single embedding per product (no chunking)
 
@@ -292,11 +292,72 @@ Option 1 provides canonical URLs directly from portal.evi360.nl (the authoritati
 
 6. **Response Formatting:** Agent formats products in Dutch markdown: "**[Name]** ([Price])\n[Description]\n[URL]" → returns full response with guideline citations + product recommendations
 
+### Portal Scraping Selectors (Validated 2025-11-04)
+
+**CRITICAL FIX - Description Selector:**
+- ❌ **WRONG:** `soup.find("p")` - Returns generic platform text (same for ALL products)
+- ✅ **CORRECT:** `div.platform-product-description p` - Returns product-specific content
+
+**Validated Selectors:**
+```python
+# Name (HIGH confidence)
+name = soup.select_one("h1").text.strip()
+
+# Description (HIGH confidence - CRITICAL: use container)
+desc_container = soup.select_one("div.platform-product-description")
+paragraphs = desc_container.find_all("p") if desc_container else []
+description = " ".join([p.text.strip() for p in paragraphs if p.text.strip()])
+
+# Price (HIGH confidence - optional, may be NULL)
+price_elem = soup.select_one(".product-price")
+price = price_elem.text.strip() if price_elem else None
+
+# Category (NOT AVAILABLE on product pages)
+category = None  # Will be enriched from CSV where matched
+```
+
+**Validation Results:**
+- Tested on 5 products: 100% success rate
+- Description lengths: 922-2662 chars (all unique, product-specific)
+- Price formats: "Vanaf € 1297/stuk", "Offerte op maat", NULL
+
+### Fuzzy Matching Strategy (Validated 2025-11-04)
+
+**Threshold & Normalization:**
+```python
+def normalize_product_name(name: str) -> str:
+    """Normalize product name for fuzzy matching."""
+    # Lowercase
+    name = name.lower()
+    # Remove special characters
+    name = re.sub(r'[^\w\s]', '', name)
+    # Strip whitespace
+    return name.strip()
+
+# Fuzzy match with 0.85 threshold (not 0.9 - too strict)
+similarity = fuzz.token_sort_ratio(
+    normalize_product_name(csv_product),
+    normalize_product_name(portal_product)
+) / 100.0
+
+if similarity >= 0.85:
+    # Match found
+```
+
+**Expected Results:**
+- Automated matches: 9/23 (39%)
+- Manual mappings (from manual_product_mappings.json): 10/23 (43%)
+- Total match rate: 19/23 (83%)
+- Unresolved: 4/23 (17% - stakeholder review required)
+
+**Manual Mapping File:** `docs/features/FEAT-004_product-catalog/manual_product_mappings.json`
+**Unresolved File:** `docs/features/FEAT-004_product-catalog/unresolved_products.json`
+
 ### Technical Dependencies
 
-- **crawl4ai:** Version latest (JavaScript rendering, async support)
-- **fuzzywuzzy:** Version 0.18.0 (fuzzy string matching)
-- **python-Levenshtein:** Version 0.12.2 (fuzzywuzzy speedup)
+- **crawl4ai:** Version 0.7.6 (JavaScript rendering, async support) - ✅ Validated
+- **fuzzywuzzy:** Version 0.18.0 (fuzzy string matching) - ✅ Validated
+- **python-Levenshtein:** Version 0.27.3 (fuzzywuzzy speedup) - ✅ Validated
 - **beautifulsoup4:** Version 4.12.3 (HTML parsing)
 - **openai:** Version 1.90.0 (embeddings API)
 - **asyncpg:** Version 0.30.0 (database driver)

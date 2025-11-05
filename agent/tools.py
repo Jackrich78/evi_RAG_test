@@ -76,6 +76,25 @@ class HybridSearchInput(BaseModel):
     text_weight: float = Field(default=0.3, description="Weight for text similarity (0-1)")
 
 
+class ProductSearchInput(BaseModel):
+    """
+    Input for product search tool.
+
+    Searches EVI 360 product catalog using hybrid search
+    (vector similarity + Dutch full-text search).
+    """
+    query: str = Field(
+        ...,
+        description="Dutch search query for products (e.g., 'burn-out begeleiding', 'fysieke klachten')"
+    )
+    limit: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description="Maximum number of products to return (1-10, default 5)"
+    )
+
+
 class DocumentInput(BaseModel):
     """Input for document retrieval."""
     document_id: str = Field(..., description="Document ID to retrieve")
@@ -382,5 +401,79 @@ async def perform_comprehensive_search(
                 results["graph_results"] = search_results[graph_idx]
     
     results["total_results"] = len(results["vector_results"]) + len(results["graph_results"])
-    
+
     return results
+
+
+async def search_products_tool(input_data: ProductSearchInput) -> List[Dict[str, Any]]:
+    """
+    Search EVI 360 product catalog using hybrid search.
+
+    Combines vector similarity (70%) with Dutch full-text search (30%)
+    to find relevant intervention products.
+
+    Args:
+        input_data: Product search parameters (query, limit)
+
+    Returns:
+        List of product dictionaries with name, description, url, price, similarity
+        Empty list on error (graceful degradation)
+    """
+    try:
+        # Generate embedding for query
+        embedding = await generate_embedding(input_data.query)
+
+        # CRITICAL: Convert embedding list to PostgreSQL vector string format
+        # This matches the pattern in hybrid_search() function
+        embedding_str = '[' + ','.join(map(str, embedding)) + ']'
+
+        # Import db_pool from db_utils (global instance)
+        from .db_utils import db_pool
+
+        async with db_pool.acquire() as conn:
+            # Call search_products SQL function
+            results = await conn.fetch("""
+                SELECT * FROM search_products($1::vector, $2::text, $3::int)
+            """, embedding_str, input_data.query, input_data.limit)
+
+        # Format results for LLM consumption
+        products = []
+        for r in results:
+            # Apply similarity threshold (only return relevant products)
+            similarity = float(r["similarity"])
+            if similarity < 0.3:  # Skip low-similarity products (lowered from 0.5)
+                continue
+
+            # Safe metadata access (handle NULL)
+            metadata = r.get("metadata") or {}
+            problem_mappings = metadata.get("problem_mappings", []) if metadata else []
+
+            # Better price handling
+            if r.get("price"):
+                price = r["price"]
+            elif metadata.get("contact_for_price"):
+                price = "Prijs op aanvraag"
+            else:
+                price = "Geen prijsinformatie beschikbaar"
+
+            # Truncate description to 200 chars for LLM context
+            description = r["description"]
+            truncated_desc = description[:200] + ("..." if len(description) > 200 else "")
+
+            products.append({
+                "product_id": str(r["product_id"]),
+                "name": r["name"],
+                "description": truncated_desc,
+                "price": price,
+                "url": r["url"],
+                "category": r.get("category") or "Overig",  # Handle NULL category
+                "similarity": round(similarity, 2),
+                "problem_mappings": problem_mappings
+            })
+
+        logger.info(f"Product search '{input_data.query}' returned {len(products)} results (threshold 0.3)")
+        return products
+
+    except Exception as e:
+        logger.error(f"Product search failed: {e}")
+        return []  # Graceful degradation - agent continues without products

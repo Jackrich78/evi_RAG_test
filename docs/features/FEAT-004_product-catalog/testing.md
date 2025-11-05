@@ -56,9 +56,9 @@ This feature requires comprehensive testing across portal scraping, CSV parsing,
    - **Mocks:** AsyncWebCrawler.arun() raises asyncio.TimeoutError
 
 6. **Test: CSV Parsing - Problem-Product Mapping Extraction (AC-004-003)**
-   - **Given:** Intervention_matrix.csv with 33 rows
+   - **Given:** Intervention_matrix.csv with 26 rows (23 unique products)
    - **When:** `parse_interventie_csv()` is called
-   - **Then:** 33 product-problem mappings extracted, problems aggregated by product name
+   - **Then:** 23 unique product-problem mappings extracted, problems aggregated by product name
    - **Mocks:** CSV file with sample data
 
 7. **Test: CSV Parsing - Many-to-One Problem Aggregation (AC-004-004)**
@@ -67,23 +67,30 @@ This feature requires comprehensive testing across portal scraping, CSV parsing,
    - **Then:** Single product with 3 problems in array
    - **Mocks:** CSV fixture with duplicate product names
 
-8. **Test: Fuzzy Matching - High Similarity Match (≥0.9) (AC-004-003)**
-   - **Given:** CSV product "Herstelcoaching" and portal product "Herstelcoaching (6-9 maanden)"
-   - **When:** `fuzzy_match_products(threshold=0.9)` is called
-   - **Then:** Products matched, problem_mappings enriched
+8. **Test: Fuzzy Matching - High Similarity Match (≥0.85) (AC-004-003)**
+   - **Given:** CSV product "Herstelcoaching" and portal product "Herstelcoaching"
+   - **When:** `fuzzy_match_products(threshold=0.85)` is called with normalization
+   - **Then:** Products matched (similarity ≥0.85), problem_mappings enriched
    - **Mocks:** Mocked portal and CSV products
 
-9. **Test: Fuzzy Matching - Low Similarity Rejection (<0.9) (AC-004-102)**
-   - **Given:** CSV product "BMW Gesprek" and portal product "Psychiatric Support"
-   - **When:** Fuzzy matching is attempted
+9. **Test: Fuzzy Matching - Low Similarity Rejection (<0.85) (AC-004-102)**
+   - **Given:** CSV product with dissimilar name to any portal product
+   - **When:** Fuzzy matching is attempted with 0.85 threshold
    - **Then:** No match, product logged to unmatched list
    - **Mocks:** Dissimilar product names
 
-10. **Test: Fuzzy Matching - Unmatched Products Logged (AC-004-102)**
-    - **Given:** 5 CSV products cannot be matched (similarity <0.9)
+10. **Test: Fuzzy Matching - Manual Mapping Fallback (AC-004-003)**
+    - **Given:** 10 CSV products in manual_product_mappings.json
+    - **When:** Fuzzy matching completes and manual mappings are loaded
+    - **Then:** 10 additional products matched via manual mapping file
+    - **Expected total:** 9 automated + 10 manual = 19 products (83%)
+    - **Mocks:** manual_product_mappings.json fixture
+
+11. **Test: Fuzzy Matching - Unmatched Products Written to File (AC-004-102)**
+    - **Given:** 4 CSV products cannot be matched (automated or manual)
     - **When:** Fuzzy matching completes
-    - **Then:** Warning logged: "⚠️  Unmatched CSV products (5): [...]"
-    - **Mocks:** CSV with mismatched names
+    - **Then:** 4 products written to unresolved_products.json for stakeholder review
+    - **Mocks:** CSV with 4 unresolved products
 
 11. **Test: Product Enrichment - Metadata with Problem Mappings (AC-004-004)**
     - **Given:** Portal product matched to CSV product with 2 problems

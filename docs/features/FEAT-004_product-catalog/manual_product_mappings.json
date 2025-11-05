@@ -1,0 +1,68 @@
+{
+  "description": "Manual product mappings for CSV products that did not achieve ≥0.85 automated fuzzy match. These mappings were validated on 2025-11-04 against the live portal.evi360.nl catalog.",
+  "validation_date": "2025-11-04",
+  "total_mappings": 10,
+  "confidence": "HIGH",
+  "mappings": [
+    {
+      "csv_product": "Inzet gewichtsconsulent",
+      "portal_product": "Gewichtsconsulent - Intake Online",
+      "confidence": "HIGH",
+      "notes": "Exact service match, different naming convention"
+    },
+    {
+      "csv_product": "Inzet van een leefstijlcoach",
+      "portal_product": "Individuele Leefstijl- En Vitaliteitscoaching",
+      "confidence": "HIGH",
+      "notes": "Leefstijlcoach = Leefstijl- En Vitaliteitscoaching"
+    },
+    {
+      "csv_product": "Inzet van een mediator",
+      "portal_product": "Mediation",
+      "confidence": "HIGH",
+      "notes": "Mediator service = Mediation"
+    },
+    {
+      "csv_product": "Loopbaanbegeleiding",
+      "portal_product": "Loopbaancoaching",
+      "confidence": "HIGH",
+      "notes": "Begeleiding = Coaching, same service"
+    },
+    {
+      "csv_product": "Vroegconsult Arbeidsdeskundige",
+      "portal_product": "Arbeidsdeskundig Onderzoek",
+      "confidence": "HIGH",
+      "notes": "Early consult is part of broader investigation service"
+    },
+    {
+      "csv_product": "Vroegconsult Arbeidsdeskundige bv. gericht op aanpassingen eigen taken",
+      "portal_product": "Arbeidsdeskundig Onderzoek",
+      "confidence": "HIGH",
+      "notes": "Specific early consult type maps to general investigation service"
+    },
+    {
+      "csv_product": "Vroegconsult arbeidsfysiotherapeut",
+      "portal_product": "Vroegconsult fysiotherapie",
+      "confidence": "HIGH",
+      "notes": "Arbeidsfysiotherapeut = fysiotherapie in work context"
+    },
+    {
+      "csv_product": "Vroegconsult arbeidspsycholoog",
+      "portal_product": "Vroegconsult psycholoog bij minder dan 6 weken verzuim",
+      "confidence": "HIGH",
+      "notes": "Early consult with work psychologist for short-term absence"
+    },
+    {
+      "csv_product": "Preventief onderzoek hoe het gaat met de inzetbaarheid van de werknemer.",
+      "portal_product": "Preventief Medisch Onderzoek (PMO)",
+      "confidence": "HIGH",
+      "notes": "Preventive employability assessment = PMO"
+    },
+    {
+      "csv_product": "Re-integratiebegeleiding naar een andere werkgever (2e of 3e spoor)",
+      "portal_product": "Re-Integratie 2e Spoor",
+      "confidence": "HIGH",
+      "notes": "Second track reintegration to different employer"
+    }
+  ]
+}

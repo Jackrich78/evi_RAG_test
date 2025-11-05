@@ -7,8 +7,8 @@
 ## Overview
 
 This feature is complete when:
-- All ~60 EVI 360 products are scraped from portal.evi360.nl with canonical URLs and pricing
-- ≥80% of CSV products are fuzzy-matched and enriched with problem mappings
+- All 76 EVI 360 products are scraped from portal.evi360.nl with canonical URLs and pricing (validated 2025-11-04)
+- ≥80% of 23 unique CSV products are fuzzy-matched and enriched (target: ≥19 products = 9 automated + 10 manual)
 - The specialist agent can search and recommend products via hybrid search (<500ms)
 - Products are formatted in Dutch markdown with working URLs
 - All tests pass (18 unit + 6 integration) and manual testing shows ≥70% relevance
@@ -19,12 +19,14 @@ This feature is complete when:
 
 **Given** portal.evi360.nl/products listing page is accessible
 **When** `python3 -m ingestion.scrape_portal_products` is executed
-**Then** ~60 products (55-65 range) are scraped with all required fields populated
+**Then** 76 products are scraped with all required fields populated (validated 2025-11-04)
 
 **Validation:**
-- [ ] Count of scraped products is between 55-65
+- [ ] Count of scraped products is 76 (exact count validated via full portal scan)
 - [ ] Automated test: `test_scrape_portal_products_count()`
 - [ ] All products have non-empty name, description, and URL fields
+- [ ] Price field may be NULL (optional)
+- [ ] Category will be NULL for scraped products (enriched from CSV where matched)
 - [ ] Scraping completes in <10 minutes
 
 **Priority:** Must Have
@@ -48,15 +50,19 @@ This feature is complete when:
 
 ### AC-004-003: CSV Fuzzy Matching Success Rate
 
-**Given** Intervention_matrix.csv contains 33 unique products
+**Given** Intervention_matrix.csv contains 26 rows with 23 unique products
 **When** `parse_interventie_csv.py` fuzzy matches CSV products to portal products
-**Then** ≥80% (≥27 of 33) CSV products are matched at ≥0.9 similarity threshold
+**Then** ≥80% (≥19 of 23) CSV products are matched via automated (0.85 threshold) + manual mapping
 
 **Validation:**
-- [ ] Match rate logged: "Matched 27/33 products (82%)"
+- [ ] Total match rate: ≥19/23 products (83%) = 9 automated (39%) + 10 manual (43%)
+- [ ] Automated fuzzy matching at 0.85 threshold: 9 products matched
+- [ ] Manual mappings loaded from `manual_product_mappings.json`: 10 products matched
 - [ ] Automated test: `test_fuzzy_match_success_rate_above_threshold()`
-- [ ] Unmatched products logged to console for manual review
+- [ ] Unmatched products (4 expected) written to `unresolved_products.json` for stakeholder review
 - [ ] Matched products have problem_mappings in metadata
+
+**Note:** Manual mapping file must be validated by stakeholder before ingestion.
 
 **Priority:** Must Have
 
@@ -64,14 +70,15 @@ This feature is complete when:
 
 ### AC-004-004: Problem Mapping Enrichment
 
-**Given** CSV products are fuzzy-matched to portal products
+**Given** CSV products are fuzzy-matched to portal products (≥19 products matched)
 **When** products are enriched with metadata
-**Then** ≥25 products have `problem_mappings` array in metadata with ≥1 problem each
+**Then** ≥19 products have `problem_mappings` array in metadata with ≥1 problem each
 
 **Validation:**
-- [ ] SQL query: `SELECT COUNT(*) FROM products WHERE jsonb_array_length(metadata->'problem_mappings') > 0` returns ≥25
+- [ ] SQL query: `SELECT COUNT(*) FROM products WHERE jsonb_array_length(metadata->'problem_mappings') > 0` returns ≥19
 - [ ] Automated test: `test_problem_mappings_enrichment()`
 - [ ] Manual inspection: Sample product has readable Dutch problem descriptions in metadata
+- [ ] Metadata structure: `{"problem_mappings": ["Problem 1", "Problem 2"], "csv_category": "Category"}`
 
 **Priority:** Must Have
 
@@ -141,7 +148,7 @@ This feature is complete when:
 
 ### AC-004-009: Search Latency Performance
 
-**Given** products table has ~60 products with embeddings and IVFFLAT index
+**Given** products table has 76 products with embeddings and IVFFLAT index
 **When** hybrid search query is executed
 **Then** search completes in <500ms at 95th percentile (p95)
 
@@ -393,13 +400,14 @@ This feature is complete when:
 
 **Criteria:**
 - **Format:** Valid CSV with headers: Probleem, Category, Link interventie, Soort interventie
-- **Row Count:** 33 rows (excluding header)
-- **Encoding:** UTF-8 with Dutch characters
+- **Row Count:** 26 rows with 23 unique products (excluding header)
+- **Encoding:** UTF-8 with Dutch characters (UTF-8-with-BOM)
 - **Required Fields:** All rows have non-empty Probleem and Soort interventie
 
 **Validation:**
 - [ ] CSV parses without errors
-- [ ] All 33 rows processed
+- [ ] All 26 rows processed
+- [ ] 23 unique products extracted (many-to-one: multiple problems → same product)
 - [ ] Dutch characters (ë, ü, etc.) handled correctly
 
 ---

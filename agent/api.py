@@ -480,7 +480,7 @@ async def chat_stream(request: ChatRequest):
                             "tool_name": "citation",
                             "args": {
                                 "title": citation.title,
-                                "source": citation.source,
+                                "source": citation.url,  # Fixed: Citation model uses 'url' not 'source'
                                 "quote": citation.quote or ""
                             }
                         }

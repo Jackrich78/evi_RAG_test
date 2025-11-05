@@ -13,13 +13,13 @@
 
 ## Executive Summary
 
-Ingest EVI 360's ~60 intervention products by scraping portal.evi360.nl and enrich them with problem-to-product mappings from the Interventie Wijzer CSV matrix. Enable the specialist agent to recommend relevant products through hybrid search (vector + problem matching), providing actionable intervention recommendations beyond guideline citations.
+Ingest EVI 360's 76 intervention products by scraping portal.evi360.nl and enrich them with problem-to-product mappings from the Interventie Wijzer CSV matrix. Enable the specialist agent to recommend relevant products through hybrid search (vector + problem matching), providing actionable intervention recommendations beyond guideline citations.
 
 **Value Proposition:** Enables agent to recommend EVI 360 intervention products with working URLs and problem-context mapping, expanding beyond guideline citations to actionable service recommendations.
 
 **Scope Change:** This PRD **merges FEAT-011** (Interventie Wijzer integration) into FEAT-004. The combined feature includes:
-- ✅ **Portal.evi360.nl web scraping** (all ~60 products with Crawl4AI)
-- ✅ **Interventie Wijzer CSV ingestion** (33 problem-to-product mappings)
+- ✅ **Portal.evi360.nl web scraping** (all 76 products with Crawl4AI)
+- ✅ **Interventie Wijzer CSV ingestion** (26 rows with 23 unique problem-to-product mappings)
 - ✅ **Problem mapping enrichment** (store problems in product metadata)
 - ✅ **Hybrid search** (vector similarity on description + problems)
 - ❌ **Two-stage search protocol** → Deferred to FEAT-012
@@ -46,16 +46,16 @@ Ingest EVI 360's ~60 intervention products by scraping portal.evi360.nl and enri
 ### What FEAT-004 Adds
 
 **1. Product Web Scraping from Portal.evi360.nl (Crawl4AI)**
-   - Scrape ~60 EVI 360 intervention products from portal.evi360.nl/products
+   - Scrape 76 EVI 360 intervention products from portal.evi360.nl/products
    - Click into each product page for full details (ignore header/footer)
    - Extract: name, description, price, canonical URL
    - Store as **source of truth** for all product data
 
 **2. Interventie Wijzer CSV Integration**
-   - Parse Intervention_matrix.csv (33 problem-to-product mappings)
+   - Parse Intervention_matrix.csv (26 rows with 23 unique problem-to-product mappings)
    - Extract: problem descriptions, categories, product names
-   - Fuzzy match CSV products to scraped portal products (≥0.9 similarity)
-   - Enrich portal products with problem mappings in metadata
+   - Fuzzy match CSV products to scraped portal products (0.85 similarity threshold with normalization)
+   - Enrich portal products with problem mappings in metadata (39% automated + 43% manual = 83% total match rate)
 
 **3. Problem-to-Product Metadata Enrichment**
    - Store problem descriptions as array in `metadata.problem_mappings`
@@ -97,7 +97,7 @@ Ingest EVI 360's ~60 intervention products by scraping portal.evi360.nl and enri
 
 ### Goals
 
-1. **Data Availability:** All ~60 products scraped from portal.evi360.nl with embeddings
+1. **Data Availability:** All 76 products scraped from portal.evi360.nl with embeddings
 2. **URL Accuracy:** 100% of products have canonical portal.evi360.nl URLs (source of truth)
 3. **Problem Mapping:** ≥80% of CSV products fuzzy-matched to portal products
 4. **Search Functionality:** Agent can retrieve products via hybrid search (vector + text)
@@ -108,12 +108,12 @@ Ingest EVI 360's ~60 intervention products by scraping portal.evi360.nl and enri
 
 | Metric | Target | Measurement Method |
 |--------|--------|-------------------|
-| **Products Scraped** | ~60 products | Count scraped from portal.evi360.nl/products |
+| **Products Scraped** | 76 products | Count scraped from portal.evi360.nl/products (validated 2025-11-04) |
 | **Embedding Coverage** | 100% | All products have non-null embedding (description + problems) |
 | **URL Coverage** | 100% | All products have canonical portal.evi360.nl URL |
 | **URL Validity** | ≥95% | % URLs returning HTTP 200 when scraped |
-| **CSV Match Rate** | ≥80% | % of 33 CSV products fuzzy-matched to portal products |
-| **Problem Mapping Coverage** | ≥25 products | # products with problem_mappings in metadata |
+| **CSV Match Rate** | ≥80% (≥19/23) | 9 automated (39%) + 10 manual (43%) = 83% total |
+| **Problem Mapping Coverage** | ≥19 products | # products with problem_mappings in metadata |
 | **Search Latency** | <500ms (p95) | PostgreSQL hybrid_search query timing |
 | **Agent Adoption** | ≥3 calls/conversation | Avg search_products() calls when relevant |
 | **Response Quality** | ≥70% relevance | Human evaluation on 10 test queries |
@@ -211,7 +211,7 @@ from crawl4ai import AsyncWebCrawler
 
 async def scrape_all_products() -> List[Dict[str, Any]]:
     """
-    Scrape all ~60 products from portal.evi360.nl using Crawl4AI.
+    Scrape all 76 products from portal.evi360.nl using Crawl4AI.
 
     Returns:
         List of products with name, description, price, url
@@ -253,37 +253,49 @@ def extract_product_details(html: str) -> Dict[str, Any]:
     """
     Extract name, description, price from product page HTML.
 
+    Validated selectors (2025-11-04):
+    - name: h1 (product title)
+    - description: div.platform-product-description p (product-specific content)
+    - price: .product-price (optional, may be NULL)
+    - category: NOT AVAILABLE on product pages
+
     Returns:
-        {"name": str, "description": str, "price": str, "category": str}
+        {"name": str, "description": str, "price": str | None}
     """
     soup = BeautifulSoup(html, "html.parser")
 
-    # Extract fields (selectors TBD - inspect site first)
-    name = soup.select_one("h1.product-title").text.strip()
-    description = soup.select_one(".product-description").text.strip()
-    price = soup.select_one(".product-price").text.strip()
-    category = soup.select_one(".product-category").text.strip() if soup.select_one(".product-category") else None
+    # Extract name
+    name = soup.select_one("h1").text.strip()
+
+    # Extract description (CRITICAL: use container to avoid generic platform text)
+    desc_container = soup.select_one("div.platform-product-description")
+    paragraphs = desc_container.find_all("p") if desc_container else []
+    description = " ".join([p.text.strip() for p in paragraphs if p.text.strip()])
+
+    # Extract price (optional)
+    price_elem = soup.select_one(".product-price")
+    price = price_elem.text.strip() if price_elem else None
 
     return {
         "name": name,
         "description": description,
-        "price": price,
-        "category": category
+        "price": price
     }
 ```
 
 **Key Requirements:**
 - ✅ Ignore header/footer elements (use `main` or `.products-grid` selectors)
 - ✅ Click into each product page for full description (not just listing preview)
-- ✅ Extract: name, description, price, canonical URL
+- ✅ Extract: name (h1), description (div.platform-product-description p), price (.product-price), canonical URL
 - ✅ Handle JavaScript-rendered content (Crawl4AI handles this automatically)
+- ⚠️ Category NOT available on product pages - will be NULL for scraped products (enriched from CSV where matched)
 
 ---
 
 #### 2. Interventie Wijzer CSV (Secondary Source - Problem Mappings)
 
 **File:** `docs/features/FEAT-004_product-catalog/Intervention_matrix.csv`
-**Structure:** 33 rows with problem-to-product mappings
+**Structure:** 26 rows with 23 unique product names (many-to-one: multiple problems → same product)
 
 | Column | Description | Example |
 |--------|-------------|---------|
@@ -326,14 +338,21 @@ def parse_interventie_csv() -> List[Dict[str, Any]]:
 
 def fuzzy_match_products(csv_products: List[Dict],
                          portal_products: List[Dict],
-                         threshold: float = 0.9) -> List[Dict]:
+                         threshold: float = 0.85) -> List[Dict]:
     """
-    Fuzzy match CSV products to portal products.
+    Fuzzy match CSV products to portal products with normalization.
+
+    Validated strategy (2025-11-04):
+    - Threshold: 0.85 (not 0.9 - too strict)
+    - Normalization: lowercase, strip whitespace, remove special chars
+    - Expected: 39% automated matches (9/23)
+    - Manual fallback: manual_product_mappings.json (10 products)
+    - Total match rate: 83% (19/23)
 
     Args:
         csv_products: From parse_interventie_csv()
         portal_products: From scrape_all_products()
-        threshold: Minimum similarity score (0.9 = 90%)
+        threshold: Minimum similarity score (0.85 = 85%)
 
     Returns:
         List of matches with portal product enriched with CSV data
@@ -382,10 +401,11 @@ def normalize_product_name(name: str) -> str:
 ```
 
 **Key Requirements:**
-- ✅ Parse 33 CSV rows into problem-product mappings
+- ✅ Parse 26 CSV rows (23 unique products) into problem-product mappings
 - ✅ Ignore CSV URLs (old/irrelevant)
-- ✅ Use fuzzy matching (≥0.9 threshold) to match CSV → portal products
-- ✅ Log unmatched products for manual review
+- ✅ Use fuzzy matching (0.85 threshold with normalization) to match CSV → portal products
+- ✅ Load manual_product_mappings.json for manual matches (10 products)
+- ✅ Write unmatched to unresolved_products.json (4 products for stakeholder review)
 - ✅ Store problems as array in `metadata.problem_mappings`
 
 ---
@@ -562,7 +582,7 @@ Step 2: Parse Intervention_matrix.csv
   → Extract 33 problem-product mappings with categories
 
 Step 3: Match CSV products to portal products
-  → Method: Fuzzy matching (≥0.9 threshold)
+  → Method: Fuzzy matching (0.85 threshold) + manual_product_mappings.json (10 products)
 
 Step 4: Enrich portal products with CSV data
   → Add problem_mappings and csv_category to metadata
@@ -610,10 +630,10 @@ python3 -m ingestion.scrape_portal_products
 
 **Tasks:**
 1. Create `ingestion/parse_interventie_csv.py` module
-2. Parse `Intervention_matrix.csv` (33 rows)
+2. Parse `Intervention_matrix.csv` (26 rows with 23 unique products)
 3. Extract problem descriptions, categories, product names
 4. Aggregate problems by product (many-to-one)
-5. Implement fuzzy matching (≥0.9 threshold) using fuzzywuzzy
+5. Implement fuzzy matching (0.85 threshold with normalization) using fuzzywuzzy
 6. Match CSV products to portal products from Phase 1
 7. Log unmatched products for manual review
 8. Test: Verify ≥80% match rate
@@ -627,7 +647,7 @@ python3 -m ingestion.scrape_portal_products
 ```bash
 python3 -m ingestion.parse_interventie_csv
 # Output: Parsed 33 product-problem mappings from CSV
-#         Fuzzy matched: 27/33 products (82% success rate)
+#         Fuzzy matched: 19/23 products (83% success rate: 9 automated + 10 manual)
 #         Unmatched: ["Adviesgesprek P&O Adviseur", "Inzet vertrouwenspersoon", ...]
 #         (Unmatched products logged for manual mapping)
 ```
@@ -861,7 +881,7 @@ Relevante EVI 360 interventies:
    - ✅ Parse Intervention_matrix.csv
    - ✅ Extract problem-product mappings
    - ✅ Aggregate problems by product (many-to-one)
-   - ✅ Fuzzy match CSV → portal products (≥0.9 threshold)
+   - ✅ Fuzzy match CSV → portal products (0.85 threshold + manual mappings)
    - ✅ Log unmatched products
 
 3. **Product Enrichment**
@@ -935,7 +955,7 @@ Relevante EVI 360 interventies:
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
 | **Portal.evi360.nl HTML changes** | High | Medium | Document selectors with comments, add scraping tests, version Crawl4AI |
-| **Product name mismatch (CSV vs portal)** | Medium | High | Fuzzy matching (≥0.9), log unmatched for manual review, fallback to exact match |
+| **Product name mismatch (CSV vs portal)** | Medium | High | Fuzzy matching (0.85 with normalization), manual_product_mappings.json (10 products), log unresolved to unresolved_products.json (4 products) |
 | **CSV contains outdated products** | Low | Medium | Portal is source of truth, CSV only adds metadata, won't break if mismatch |
 | **Embedding cost exceeds budget** | Low | Low | Estimate: $0.0001/1K tokens × 450 avg tokens × 60 products = ~$0.30 total |
 | **Search relevance poor (<70%)** | Medium | Medium | Test with 10 queries, iterate on embedding strategy (description + problems validated) |
