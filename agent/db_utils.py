@@ -21,6 +21,28 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+# JSONB Codec Functions
+def _encode_jsonb(value):
+    """Encode Python dict/list to JSONB binary format."""
+    return b'\x01' + json.dumps(value).encode('utf-8')
+
+
+def _decode_jsonb(value):
+    """Decode JSONB binary format to Python dict/list."""
+    return json.loads(value[1:].decode('utf-8'))
+
+
+async def _init_connection(conn):
+    """Initialize connection with custom JSONB type codec."""
+    await conn.set_type_codec(
+        'jsonb',
+        schema='pg_catalog',
+        encoder=_encode_jsonb,
+        decoder=_decode_jsonb,
+        format='binary'
+    )
+
+
 class DatabasePool:
     """Manages PostgreSQL connection pool."""
     
@@ -45,9 +67,10 @@ class DatabasePool:
                 min_size=5,
                 max_size=20,
                 max_inactive_connection_lifetime=300,
-                command_timeout=60
+                command_timeout=60,
+                init=_init_connection
             )
-            logger.info("Database connection pool initialized")
+            logger.info("Database connection pool initialized with JSONB codec")
     
     async def close(self):
         """Close connection pool."""
@@ -145,7 +168,7 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
             return {
                 "id": result["id"],
                 "user_id": result["user_id"],
-                "metadata": json.loads(result["metadata"]),
+                "metadata": result["metadata"],
                 "created_at": result["created_at"].isoformat(),
                 "updated_at": result["updated_at"].isoformat(),
                 "expires_at": result["expires_at"].isoformat() if result["expires_at"] else None
@@ -266,7 +289,7 @@ async def get_session_messages(
                 "id": row["id"],
                 "role": row["role"],
                 "content": row["content"],
-                "metadata": json.loads(row["metadata"]),
+                "metadata": row["metadata"],
                 "created_at": row["created_at"].isoformat()
             }
             for row in reversed(results)
@@ -307,7 +330,7 @@ async def get_document(document_id: str) -> Optional[Dict[str, Any]]:
                 "title": result["title"],
                 "source": result["source"],
                 "content": result["content"],
-                "metadata": json.loads(result["metadata"]),
+                "metadata": result["metadata"],
                 "created_at": result["created_at"].isoformat(),
                 "updated_at": result["updated_at"].isoformat()
             }
@@ -370,7 +393,7 @@ async def list_documents(
                 "id": row["id"],
                 "title": row["title"],
                 "source": row["source"],
-                "metadata": json.loads(row["metadata"]),
+                "metadata": row["metadata"],
                 "created_at": row["created_at"].isoformat(),
                 "updated_at": row["updated_at"].isoformat(),
                 "chunk_count": row["chunk_count"]
@@ -411,7 +434,7 @@ async def vector_search(
                 "document_id": row["document_id"],
                 "content": row["content"],
                 "similarity": row["similarity"],
-                "metadata": json.loads(row["metadata"]),
+                "metadata": row["metadata"],
                 "document_title": row["document_title"],
                 "document_source": row["document_source"],
                 "source_url": row.get("source_url")
@@ -459,7 +482,7 @@ async def hybrid_search(
                 "combined_score": row["combined_score"],
                 "vector_similarity": row["vector_similarity"],
                 "text_similarity": row["text_similarity"],
-                "metadata": json.loads(row["metadata"]),
+                "metadata": row["metadata"],
                 "document_title": row["document_title"],
                 "document_source": row["document_source"],
                 "source_url": row.get("source_url")
@@ -490,7 +513,7 @@ async def get_document_chunks(document_id: str) -> List[Dict[str, Any]]:
                 "chunk_id": row["chunk_id"],
                 "content": row["content"],
                 "chunk_index": row["chunk_index"],
-                "metadata": json.loads(row["metadata"])
+                "metadata": row["metadata"]
             }
             for row in results
         ]

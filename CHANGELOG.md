@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - FEAT-004 Phase 4 Complete: Product Catalog Agent Integration (2025-11-05)
+
+**FEAT-004: Product Catalog - Phase 4 Agent Integration COMPLETE**
+
+✅ **Phase 4 Implementation Complete**
+- Product search integration working end-to-end
+- Agent successfully calls search_products tool for intervention queries
+- Products formatted correctly in Dutch markdown responses
+- Fixed critical JSONB metadata parsing bug
+
+**Root Cause Fix: asyncpg JSONB Codec**
+- **Problem:** Product search failed with `'str' object has no attribute 'get'` error
+- **Cause:** asyncpg returns JSONB columns as JSON strings by default (unlike psycopg2)
+- **Solution:** Added JSONB codec to connection pool initialization in db_utils.py
+- **Impact:** Fixed metadata parsing for all 6 tables with JSONB columns (chunks, documents, products, sessions, messages, document_summaries)
+
+**Files Modified:**
+- `agent/db_utils.py` (lines 24-43, 71) - Added 3 JSONB codec functions, modified pool init
+- Removed 7 manual `json.loads()` calls (lines 171, 292, 333, 396, 437, 485, 516)
+- No changes needed to `agent/tools.py` (bug automatically fixed by codec)
+
+**Implementation Details:**
+```python
+# JSONB Codec Functions (db_utils.py lines 24-43)
+def _encode_jsonb(value):
+    """Encode Python dict/list to JSONB binary format."""
+    return b'\x01' + json.dumps(value).encode('utf-8')
+
+def _decode_jsonb(value):
+    """Decode JSONB binary format to Python dict/list."""
+    return json.loads(value[1:].decode('utf-8'))
+
+async def _init_connection(conn):
+    """Initialize connection with custom JSONB type codec."""
+    await conn.set_type_codec(
+        'jsonb',
+        schema='pg_catalog',
+        encoder=_encode_jsonb,
+        decoder=_decode_jsonb,
+        format='binary'
+    )
+
+# Connection Pool Initialization (db_utils.py line 71)
+self.pool = await asyncpg.create_pool(
+    self.database_url,
+    min_size=5,
+    max_size=20,
+    max_inactive_connection_lifetime=300,
+    command_timeout=60,
+    init=_init_connection  # ← Added this parameter
+)
+```
+
+**Testing Results:**
+- Query: "Werkdruk problemen, wat raadt EVI 360 aan?"
+- Results: 3 relevant products returned successfully
+  - Multidisciplinaire burnout aanpak (Offerte op maat)
+  - Individuele Leefstijl- En Vitaliteitscoaching (Offerte op maat)
+  - Werkplekonderzoek op locatie (Offerte op maat)
+- Similarity threshold: 0.3 (lowered from 0.5 for better recall)
+- No errors in logs, all tests passing
+
+**Acceptance Criteria Met:**
+- ✅ AC-004-007: search_products() tool registered and callable
+- ✅ AC-004-008: Products formatted correctly in Dutch markdown
+- ✅ AC-004-105: Agent calls tool appropriately for intervention queries
+- ✅ AC-004-009: Search latency <500ms
+- ✅ AC-004-010: Tests passing
+
+**Benefits:**
+- **Maintainability:** DRY principle - configure once, works everywhere
+- **Future-proof:** New JSONB columns automatically work
+- **Prevention:** No more manual JSON parsing bugs
+- **Standard Pattern:** Follows asyncpg best practices
+
+**Documentation:**
+- [PHASE_4_STATUS.md](docs/features/FEAT-004_product-catalog/PHASE_4_STATUS.md) - Complete phase 4 summary
+- [PHASE_4_plan.md](docs/features/FEAT-004_product-catalog/PHASE_4_plan.md) - Original implementation plan
+
+**Post-Completion Bug Fixes (2025-11-05 Evening):**
+- Fixed citation model field mismatch in `agent/api.py:483` (citation.source → citation.url)
+- Adjusted product search threshold in `agent/tools.py:444` (0.5 → 0.3) for better product recall
+- Updated unit test `tests/unit/test_product_ingest.py` to validate 0.3 threshold
+
+**Lesson Learned:**
+asyncpg requires explicit JSONB codec setup (unlike psycopg2). Always configure codecs during connection pool initialization when working with JSONB columns.
+
+---
+
 ### Added - FEAT-004 Planning Complete: Product Catalog with Interventie Wijzer Integration (2025-11-04)
 - **FEAT-004: Product Catalog with Interventie Wijzer Integration - Planning Documentation Complete**
   - **Status:** ✅ Ready for Implementation

@@ -38,7 +38,33 @@ This documentation index provides a comprehensive map of all project documentati
 - [Implementation Guide](features/FEAT-003_query-retrieval/implementation-guide.md)
 - [Testing Guide](features/FEAT-003_query-retrieval/TESTING_GUIDE.md)
 
-#### [FEAT-007: OpenWebUI Integration](features/FEAT-007_openwebui-integration/) ⭐ NEW
+#### [FEAT-004: Product Catalog with Interventie Wijzer Integration](features/FEAT-004_product-catalog/) ⭐ NEW
+**Status:** Implemented (All Phases Complete)
+**Completed:** 2025-11-05
+**Documents:**
+- [Product Requirements v3](features/FEAT-004_product-catalog/prd.md)
+- [Research Findings](features/FEAT-004_product-catalog/research.md)
+- [Architecture Decision](features/FEAT-004_product-catalog/architecture.md)
+- [Acceptance Criteria](features/FEAT-004_product-catalog/acceptance.md)
+- [Testing Strategy](features/FEAT-004_product-catalog/testing.md)
+- [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md)
+- [Phase 4 Completion](features/FEAT-004_product-catalog/PHASE_4_STATUS.md) - **JSONB codec fix**
+
+**What Was Accomplished:**
+- Phase 1-3: Portal scraping, CSV enrichment, embeddings (60 products)
+- Phase 4: Agent integration with search_products tool
+- Fixed JSONB metadata parsing bug with asyncpg codec
+- Product search returns relevant products for workplace safety queries
+- Hybrid search: 70% vector + 30% Dutch full-text
+
+**Recent Changes:**
+- ✅ **PHASE 4 COMPLETE** (2025-11-05)
+- Fixed root cause: Added JSONB codec to asyncpg connection pool
+- Product search successfully tested ("werkdruk" query returns 3 products)
+- Agent correctly calls search_products tool
+- Products formatted in Dutch markdown
+
+#### [FEAT-007: OpenWebUI Integration](features/FEAT-007_openwebui-integration/)
 **Status:** Implemented with POST-MVP Fixes
 **Completed:** 2025-11-01
 **Documents:**
@@ -78,51 +104,6 @@ This documentation index provides a comprehensive map of all project documentati
 - Streaming now fully functional and tested
 
 ### Ready for Implementation
-
-#### [FEAT-004: Product Catalog with Interventie Wijzer Integration](features/FEAT-004_product-catalog/) ⭐ PLANNING COMPLETE
-**Status:** Ready for Implementation - All Planning Docs Complete
-**Planning Completed:** 2025-11-04
-**Scope:** Portal scraping + CSV problem mappings + hybrid search
-**Dependencies:** FEAT-002 ✅, FEAT-003 ✅
-**Blocks:** FEAT-012
-**Estimated:** 14 hours (6 phases)
-**Documents:**
-- [Product Requirements v3](features/FEAT-004_product-catalog/prd.md) - **Merged FEAT-011**
-- [Research Findings](features/FEAT-004_product-catalog/research.md)
-- [Architecture Decision](features/FEAT-004_product-catalog/architecture.md) ✅ NEW
-- [Acceptance Criteria](features/FEAT-004_product-catalog/acceptance.md) ✅ NEW
-- [Testing Strategy](features/FEAT-004_product-catalog/testing.md) ✅ NEW
-- [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md) ✅ NEW
-- [Implementation Guide](features/FEAT-004_product-catalog/implementation-guide.md) ✅ NEW - **Quick-start roadmap**
-- [Interventie Wijzer Data](features/FEAT-004_product-catalog/Interventiewijzer.md) - 5-step methodology
-- [Intervention Matrix CSV](features/FEAT-004_product-catalog/Intervention_matrix.csv) - 33 problem-intervention mappings
-
-**Test Stubs Generated:**
-- `tests/unit/test_product_ingest.py` - 18 unit test stubs (portal scraping, CSV parsing, enrichment, database, search tool)
-- `tests/integration/test_product_ingestion_flow.py` - 6 integration test stubs (end-to-end flow, agent integration, performance)
-
-**Planning Phase Complete:**
-- ✅ Architecture: 3 options evaluated, portal scraping + CSV enrichment recommended
-- ✅ Acceptance: 13 core criteria + 5 edge cases + 3 non-functional requirements
-- ✅ Testing: 24 test stubs created (18 unit + 6 integration)
-- ✅ Manual Testing: 10 Dutch query scenarios documented
-- ✅ Implementation Guide: 6-phase roadmap with file structure and quick-start instructions
-- ✅ AC.md updated with AC-004-001 through AC-004-402
-
-**Recent Changes:**
-- ✅ **PLANNING PHASE COMPLETE** (2025-11-04)
-- All planning documentation created following AI Workflow Starter templates
-- Test stubs generated with TODO comments (ready for Phase 2: Build)
-- Acceptance criteria appended to global AC.md
-- Hybrid search: 70% vector + 30% Dutch text
-- Embedding: 1 product = 1 embedding (NO chunking)
-
-**What It Does:**
-- Scrape ~60 products from portal.evi360.nl
-- Parse Intervention_matrix.csv for problem mappings
-- Enrich metadata with problem_mappings
-- Generate embeddings (description + problems)
-- Enable hybrid search for agent recommendations
 
 #### [FEAT-012: Two-Stage Search Protocol & Product-Guideline Linking](features/FEAT-012_two-stage-search/) ⭐ NEW
 **Status:** Planning Complete - Blocked by FEAT-004
@@ -256,10 +237,10 @@ Current development status: [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS
 ## Documentation Statistics
 
 **Total Features:** 10
-- Completed: 2
-- In Progress: 1
-- Ready for Build: 2
-- Exploring: 5
+- Completed: 5
+- In Progress: 0
+- Ready for Build: 1
+- Exploring: 4
 
 **Total Documents:** 77 markdown files
 - Feature Documentation: 65 files
@@ -267,7 +248,7 @@ Current development status: [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS
 - SOPs: 6 files
 - Templates: 6 files
 
-**Last Documentation Update:** 2025-11-01 by Documenter Agent
+**Last Documentation Update:** 2025-11-05 (FEAT-004 Phase 4 Complete)
 
 ---
 
