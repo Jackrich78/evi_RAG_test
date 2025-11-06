@@ -236,3 +236,63 @@ Two minor bugs were identified and fixed after initial completion:
 **Impact:** More relevant products now returned in search results
 
 Both fixes are minor adjustments that improve the feature without changing core functionality.
+
+---
+
+## Prompt v3.0 Upgrade (2025-11-06)
+
+### Production Best Practices Integration
+
+**Objective**: Improve product recommendation frequency and output quality by adopting production prompt structure.
+
+**Changes Made** (`agent/specialist_agent.py` lines 39-367):
+
+1. **Products-First UX Structure**
+   - Before: Guidelines → Products
+   - After: Products → Guidelines (action-oriented UX)
+   - Three-tier recommendations: Primary (3) → Additional (1-2) → Preventative
+
+2. **Name Extraction & Personalization**
+   - Extract: "Werknemer Bas..." → "Bas"
+   - Use throughout: "Werknemergerichte interventies voor Bas:"
+   - Fallback: "de werknemer" / "the employee"
+
+3. **Markdown Product Links** (Better UX)
+   - Before: `🔗 [https://portal.evi360.nl/products/15]`
+   - After: `[Herstelcoaching](https://portal.evi360.nl/products/15)` (clickable names)
+
+4. **Guidelines Restructure**
+   - Embedded in products: "* Ondersteunende richtlijnen"
+   - Deduplicated list at end: "### Gebruikte Richtlijnen"
+   - Format: `- **[Page Title]** - [1-line summary]` (NO external URLs)
+
+5. **Two-Stage Product Search**
+   - Stage 0: Facet extraction (name, issue, duration, role, constraints)
+   - Stage 1: search_guidelines() first, then search_products()
+   - Stage 2: Weighted scoring (Impact 0.4, Fit 0.3, Guidelines 0.2, Feasibility 0.1)
+
+6. **Critical Formatting Rules**
+   - ❌ NO backslashes, NO colons after headers
+   - ✅ Heading 3 format (###), blank lines, self-correction protocol
+
+7. **Explicit Tone**
+   - Dutch: INFORMAL SINGULAR ('je', 'jij', never 'u')
+   - English: Friendly, professional, supportive
+
+**Testing Results**:
+✅ Dutch query test successful - Products appear first with correct structure
+✅ Heading 3 format, subsections with bullets, embedded guidelines verified
+✅ Language auto-detection preserved
+
+**Prompt Size**:
+- Before: 88 lines (~700 tokens)
+- After: 329 lines (~1,600 tokens)
+- Increase: 2.3x for improved quality
+
+**Backup**: `agent/specialist_agent.py.v2-backup`
+
+**Expected Improvements**:
+- 20-30% increase in search_products() call frequency
+- Higher quality recommendations (facet extraction + scoring)
+- Better UX (products first, clickable links, personalized)
+- Zero formatting errors (self-correction protocol)

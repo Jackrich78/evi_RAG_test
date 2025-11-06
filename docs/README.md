@@ -38,9 +38,9 @@ This documentation index provides a comprehensive map of all project documentati
 - [Implementation Guide](features/FEAT-003_query-retrieval/implementation-guide.md)
 - [Testing Guide](features/FEAT-003_query-retrieval/TESTING_GUIDE.md)
 
-#### [FEAT-004: Product Catalog with Interventie Wijzer Integration](features/FEAT-004_product-catalog/) ⭐ NEW
-**Status:** Implemented (All Phases Complete)
-**Completed:** 2025-11-05
+#### [FEAT-004: Product Catalog with Interventie Wijzer Integration](features/FEAT-004_product-catalog/) ⭐ UPDATED
+**Status:** Implemented (All Phases Complete + Prompt v3.0)
+**Completed:** 2025-11-05 | **Updated:** 2025-11-06
 **Documents:**
 - [Product Requirements v3](features/FEAT-004_product-catalog/prd.md)
 - [Research Findings](features/FEAT-004_product-catalog/research.md)
@@ -48,7 +48,7 @@ This documentation index provides a comprehensive map of all project documentati
 - [Acceptance Criteria](features/FEAT-004_product-catalog/acceptance.md)
 - [Testing Strategy](features/FEAT-004_product-catalog/testing.md)
 - [Manual Test Guide](features/FEAT-004_product-catalog/manual-test.md)
-- [Phase 4 Completion](features/FEAT-004_product-catalog/PHASE_4_STATUS.md) - **JSONB codec fix**
+- [Phase 4 Completion](features/FEAT-004_product-catalog/PHASE_4_STATUS.md) - **JSONB codec fix + Prompt v3.0**
 
 **What Was Accomplished:**
 - Phase 1-3: Portal scraping, CSV enrichment, embeddings (60 products)
@@ -56,13 +56,20 @@ This documentation index provides a comprehensive map of all project documentati
 - Fixed JSONB metadata parsing bug with asyncpg codec
 - Product search returns relevant products for workplace safety queries
 - Hybrid search: 70% vector + 30% Dutch full-text
+- **Prompt v3.0:** Production best practices upgrade (2025-11-06)
 
 **Recent Changes:**
+- ✅ **PROMPT v3.0 UPGRADE** (2025-11-06)
+- Products-first response structure (UX best practice)
+- Three-tier recommendations (Primary/Additional/Preventative)
+- Name extraction for personalization
+- Markdown links for products `[Name](url)`
+- Guidelines moved to end with deduplication
+- Two-stage product search protocol
 - ✅ **PHASE 4 COMPLETE** (2025-11-05)
 - Fixed root cause: Added JSONB codec to asyncpg connection pool
 - Product search successfully tested ("werkdruk" query returns 3 products)
 - Agent correctly calls search_products tool
-- Products formatted in Dutch markdown
 
 #### [FEAT-007: OpenWebUI Integration](features/FEAT-007_openwebui-integration/)
 **Status:** Implemented with POST-MVP Fixes
@@ -248,7 +255,7 @@ Current development status: [IMPLEMENTATION_PROGRESS.md](IMPLEMENTATION_PROGRESS
 - SOPs: 6 files
 - Templates: 6 files
 
-**Last Documentation Update:** 2025-11-05 (FEAT-004 Phase 4 Complete)
+**Last Documentation Update:** 2025-11-06 (FEAT-004 Prompt v3.0 Upgrade)
 
 ---
 
